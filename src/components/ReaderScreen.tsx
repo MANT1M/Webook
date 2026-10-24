@@ -247,7 +247,6 @@ export const ReaderScreen: React.FC<ReaderScreenProps> = ({
   const currentPage = pages[pageIndex] ?? { start: 0, end: 0, text: '' };
   const isFirst = pageIndex === 0;
   const isLast = pageIndex === pages.length - 1;
-  const computedLineHeight = Math.max(1.55, arabicScale * 1.38).toFixed(2);
 
   const activeFootnote = useMemo(() => {
     if (activeFnId === null || !chapter.footnotes) return null;
@@ -366,7 +365,7 @@ export const ReaderScreen: React.FC<ReaderScreenProps> = ({
           justifyContent: 'space-between',
           fontFamily: 'Georgia, "Lora", serif',
           fontSize: `${fontSize}px`,
-          lineHeight: computedLineHeight,
+          lineHeight: 1.6,
         }}
       >
         {/* Кастомный вертикальный скроллбар режима чтения */}
@@ -409,6 +408,7 @@ export const ReaderScreen: React.FC<ReaderScreenProps> = ({
         <FootnotePopup
           activeFn={activeFootnote}
           theme={activeTheme}
+          fontSize={fontSize}
           arabicScale={arabicScale}
           onClose={() => setActiveFnId(null)}
         />

@@ -31,8 +31,8 @@ export function paginate(
   const w = Math.max(280, Math.min(viewportWidth, 720) - 44);
   const h = Math.max(260, viewportHeight - 190);
   const charsPerLine = Math.max(22, Math.floor(w / (fontSize * 0.55)));
-  const lineHeightFactor = Math.max(1.55, arabicScale * 1.38);
-  const maxLines = Math.max(5, Math.floor(h / (fontSize * lineHeightFactor)));
+  const baseLineHeightFactor = 1.6;
+  const maxLines = Math.max(5, Math.floor(h / (fontSize * baseLineHeightFactor)));
 
   const visualLines: VisualLine[] = [];
   const totalLen = text.length;
@@ -80,8 +80,17 @@ export function paginate(
         isLastLineOfParagraph && hasNewline ? paraEnd + 1 : lineEnd;
       const lineSubstr = text.slice(lineStart, lineEnd);
       const hasArabic = ARABIC_CHAR_RE.test(lineSubstr);
+      const hasCyrillicOrLatin = /[А-Яа-яЁёA-Za-z]/.test(lineSubstr);
+      const isPureArabic = hasArabic && !hasCyrillicOrLatin;
 
-      let cost = hasArabic && arabicScale > 1.2 ? 1.15 : 1.0;
+      // Только строки, реально содержащие арабский текст, увеличивают высоту строки
+      let cost = 1.0;
+      if (isPureArabic) {
+        cost = Math.max(1.2, arabicScale * 0.85);
+      } else if (hasArabic && arabicScale > 1.25) {
+        cost = Math.min(1.35, 1.0 + (arabicScale - 1) * 0.2);
+      }
+
       if (isLastLineOfParagraph && hasNewline) {
         cost += 0.35;
       }

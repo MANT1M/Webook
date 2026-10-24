@@ -38,7 +38,11 @@ function renderArabicScaledSegment(
         <span
           key={`${keyPrefix}-ar-${idx}`}
           className="font-arabic"
-          style={{ fontSize: scaledSize }}
+          style={{
+            fontSize: scaledSize,
+            lineHeight: 1.25,
+            display: 'inline',
+          }}
         >
           {part}
         </span>
@@ -104,31 +108,44 @@ export function formatMixedArabicHtml(
 
       if (footnoteIds.has(fnNumber) && onToggleFootnote) {
         const isOpen = activeFnId === fnNumber;
+        const badgeFontSize = Math.max(12, Math.round(baseFontSize * 0.7));
         nodes.push(
           <button
             key={`l${lineIdx}-fn-${fnNumber}-${matchStart}`}
             type="button"
             className="fn-badge"
             aria-expanded={isOpen}
+            title={isOpen ? `Закрыть сноску ${fnNumber}` : `Открыть сноску ${fnNumber}`}
             onClick={(e) => {
               e.stopPropagation();
               onToggleFootnote(fnNumber);
             }}
             style={{
-              padding: '1px 5px',
-              margin: '0 2px',
-              fontSize: '11px',
-              fontFamily: 'monospace',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '2px 7px',
+              margin: '0 3px',
+              fontSize: `${badgeFontSize}px`,
+              fontFamily: 'system-ui, -apple-system, sans-serif',
               fontWeight: 700,
-              borderRadius: '5px',
+              borderRadius: '6px',
               background: isOpen
-                ? 'rgba(245, 158, 11, 0.38)'
-                : 'rgba(245, 158, 11, 0.22)',
-              color: '#B45309',
-              border: '1px solid rgba(180, 83, 9, 0.4)',
-              verticalAlign: 'super',
+                ? '#B45309'
+                : 'rgba(245, 158, 11, 0.24)',
+              color: isOpen ? '#FFFFFF' : '#B45309',
+              border: isOpen
+                ? '1px solid #92400E'
+                : '1px solid rgba(180, 83, 9, 0.45)',
+              boxShadow: isOpen
+                ? '0 0 0 2px rgba(245, 158, 11, 0.4)'
+                : 'none',
+              verticalAlign: 'baseline',
+              position: 'relative',
+              top: '-0.25em',
               cursor: 'pointer',
-              lineHeight: 1.2,
+              lineHeight: 1.1,
+              touchAction: 'manipulation',
             }}
           >
             [{fnNumber}]
@@ -160,6 +177,19 @@ export function formatMixedArabicHtml(
       );
     }
 
+    const hasArabicInLine = ARABIC_TEST_RE.test(line);
+
+    // Межстрочный интервал абзаца:
+    // - Чисто русский абзац ВСЕГДА сохраняет фиксированный комфортный интервал 1.6
+    // - Только чисто арабский блок (аят, дуа) увеличивает интервал для огласовок (харакатов)
+    // - Смешанный текст со вставкой арабского слова получает минимальную коррекцию
+    let paragraphLineHeight = '1.6';
+    if (isPureArabic) {
+      paragraphLineHeight = `${Math.max(1.8, Math.min(2.4, arabicScale * 1.15)).toFixed(2)}`;
+    } else if (hasArabicInLine && arabicScale > 1.3) {
+      paragraphLineHeight = `${Math.min(1.75, 1.6 + (arabicScale - 1) * 0.12).toFixed(2)}`;
+    }
+
     return (
       <p
         key={`line-${lineIdx}`}
@@ -168,6 +198,8 @@ export function formatMixedArabicHtml(
           textAlign: isPureArabic ? 'right' : 'left',
           margin: lines.length === 1 ? 0 : '0 0 0.65em 0',
           wordBreak: 'break-word',
+          lineHeight: paragraphLineHeight,
+          ...(isPureArabic ? { padding: '4px 0' } : {}),
         }}
       >
         {nodes}
