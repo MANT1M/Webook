@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { ChapterData, ThemeMode } from '../types/reader';
 import { BRAND_COLORS, THEMES } from '../constants/theme';
-import { paginate, findPageIndexByOffset } from '../utils/pagination';
 import { formatReaderPageContent } from '../utils/arabicFormatter';
 import { CustomScrollbar } from './CustomScrollbar';
 import { FootnotePopup } from './FootnotePopup';
@@ -10,6 +9,7 @@ import { QuizOrigin } from './LibraryScreen';
 
 export interface ReaderScreenProps {
   chapter: ChapterData;
+  previousChapter?: ChapterData | null;
   nextChapter?: ChapterData | null;
   initialOffset: number;
   theme: ThemeMode;
@@ -26,11 +26,13 @@ export interface ReaderScreenProps {
   onRecordQuizResult: (chapterId: number, score: number, passed: boolean) => void;
   onBackToLibrary: () => void;
   onStartQuiz: (chapter: ChapterData, origin: QuizOrigin) => void;
+  onOpenPreviousChapter?: (prevChapter: ChapterData) => void;
   onOpenNextChapter?: (nextChapter: ChapterData) => void;
 }
 
 export const ReaderScreen: React.FC<ReaderScreenProps> = ({
   chapter,
+  previousChapter = null,
   nextChapter = null,
   initialOffset,
   theme,
@@ -47,17 +49,16 @@ export const ReaderScreen: React.FC<ReaderScreenProps> = ({
   onRecordQuizResult,
   onBackToLibrary,
   onStartQuiz,
+  onOpenPreviousChapter,
   onOpenNextChapter,
 }) => {
-  const [viewport, setViewport] = useState<{ width: number; height: number }>(() => ({
-    width: typeof window !== 'undefined' ? window.innerWidth : 390,
-    height: typeof window !== 'undefined' ? window.innerHeight : 844,
-  }));
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const saveTimeoutRef = useRef<number | null>(null);
 
-  const [charOffset, setCharOffset] = useState<number>(initialOffset);
   const [controlsVisible, setControlsVisible] = useState<boolean>(true);
   const [internalSettingsOpen, setInternalSettingsOpen] = useState<boolean>(false);
   const [internalActiveFnId, setInternalActiveFnId] = useState<number | null>(null);
+  const [scrollProgressPct, setScrollProgressPct] = useState<number>(0);
 
   const settingsOpen =
     controlledSettingsOpen !== undefined
@@ -91,87 +92,65 @@ export const ReaderScreen: React.FC<ReaderScreenProps> = ({
     [onChangeActiveFnId]
   );
 
-  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
-  const swipeHandledRef = useRef<boolean>(false);
-
-  // При смене главы синхронизируем стартовый offset и сбрасываем открытую сноску/шторку
+  // Восстановление позиции прокрутки при открытии или смене главы
   useEffect(() => {
-    setCharOffset(initialOffset);
     setActiveFnId(null);
     setSettingsOpen(false);
+
+    const el = scrollContainerRef.current;
+    if (!el) return;
+
+    if (initialOffset > 0) {
+      // Небольшая задержка для завершения рендера и применения шрифтов
+      const timer = window.setTimeout(() => {
+        if (scrollContainerRef.current) {
+          scrollContainerRef.current.scrollTop = initialOffset;
+        }
+      }, 50);
+      return () => window.clearTimeout(timer);
+    } else {
+      el.scrollTop = 0;
+      setScrollProgressPct(0);
+    }
   }, [chapter.id, initialOffset, setActiveFnId, setSettingsOpen]);
 
-  // Отслеживание ресайза окна для пересчета пагинации с сохранением charOffset
-  useEffect(() => {
-    const handleResize = () => {
-      setViewport({
-        width: window.innerWidth,
-        height: window.innerHeight,
-      });
-    };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  // Обработка прокрутки: расчет прогресса и сохранение позиции
+  const handleScroll = useCallback(() => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
 
-  const pages = useMemo(() => {
-    return paginate(
-      chapter.content,
-      fontSize,
-      arabicScale,
-      viewport.width,
-      viewport.height
-    );
-  }, [chapter.content, fontSize, arabicScale, viewport.width, viewport.height]);
+    const scrollTop = el.scrollTop;
+    const scrollHeight = el.scrollHeight;
+    const clientHeight = el.clientHeight;
+    const maxScroll = scrollHeight - clientHeight;
 
-  const pageIndex = useMemo(() => {
-    return findPageIndexByOffset(pages, charOffset);
-  }, [pages, charOffset]);
+    let pct = 0;
+    if (maxScroll > 0) {
+      pct = Math.min(100, Math.max(0, Math.round((scrollTop / maxScroll) * 100)));
+    }
+    setScrollProgressPct(pct);
 
-  const goToPage = useCallback(
-    (targetIdx: number) => {
-      const clampedIdx = Math.min(Math.max(0, targetIdx), pages.length - 1);
-      const nextOffset = pages[clampedIdx]?.start ?? 0;
-      setCharOffset(nextOffset);
-      onUpdateOffset(chapter.id, nextOffset);
-      setActiveFnId(null);
-    },
-    [pages, chapter.id, onUpdateOffset, setActiveFnId]
-  );
-
-  const turnPage = useCallback(
-    (delta: number) => {
-      const nextIdx = pageIndex + delta;
-      if (nextIdx < 0 || nextIdx >= pages.length) return;
-      goToPage(nextIdx);
-    },
-    [pageIndex, pages.length, goToPage]
-  );
-
-  // Если у главы нет проверочных вопросов и открыта последняя страница — автоматически засчитываем PASSED
-  useEffect(() => {
-    if (
-      chapter.quiz.length === 0 &&
-      pages.length > 0 &&
-      pageIndex === pages.length - 1
-    ) {
+    // Автоматически отмечаем прочитанной, если нет вопросов и дочитали до конца (>= 92%)
+    if (chapter.quiz.length === 0 && (pct >= 92 || scrollTop + clientHeight >= scrollHeight - 30)) {
       onRecordQuizResult(chapter.id, 100, true);
     }
-  }, [chapter.id, chapter.quiz.length, pageIndex, pages.length, onRecordQuizResult]);
 
-  // Навигация клавишами ArrowRight / ArrowLeft
+    // Сохраняем позицию с debounce
+    if (saveTimeoutRef.current !== null) {
+      window.clearTimeout(saveTimeoutRef.current);
+    }
+    saveTimeoutRef.current = window.setTimeout(() => {
+      onUpdateOffset(chapter.id, Math.round(scrollTop));
+    }, 250);
+  }, [chapter.id, chapter.quiz.length, onRecordQuizResult, onUpdateOffset]);
+
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowRight') {
-        e.preventDefault();
-        turnPage(1);
-      } else if (e.key === 'ArrowLeft') {
-        e.preventDefault();
-        turnPage(-1);
+    return () => {
+      if (saveTimeoutRef.current !== null) {
+        window.clearTimeout(saveTimeoutRef.current);
       }
     };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [turnPage]);
+  }, []);
 
   const handleToggleFootnote = useCallback(
     (fnId: number) => {
@@ -180,73 +159,29 @@ export const ReaderScreen: React.FC<ReaderScreenProps> = ({
     [activeFnId, setActiveFnId]
   );
 
-  // Обработка клика/тапа по области текста (handleReaderTap)
-  const handleReaderTap = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (swipeHandledRef.current) {
-      swipeHandledRef.current = false;
+  // Нажатие на область чтения: закрывает сноску/настройки или переключает HUD
+  const handleContentAreaClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    // Если клик был по интерактивному элементу (кнопка, сноска, ссылка) — не переключаем HUD
+    const target = e.target as HTMLElement;
+    if (target.closest('button') || target.closest('.fn-badge') || target.closest('a')) {
       return;
     }
 
-    // 1) Если открыта шторка настроек — закрыть настройки и выйти
     if (settingsOpen) {
       setSettingsOpen(false);
       return;
     }
 
-    // 2) Если открыта сноска — закрыть сноску и выйти
     if (activeFnId !== null) {
       setActiveFnId(null);
       return;
     }
 
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const width = rect.width;
-
-    // 3) Левые 25% ширины — предыдущая страница
-    if (x < width * 0.25) {
-      turnPage(-1);
-      return;
-    }
-
-    // 4) Правые 25% ширины — следующая страница
-    if (x > width * 0.75) {
-      turnPage(1);
-      return;
-    }
-
-    // 5) Центральные 50% — переключить видимость HUD
+    // Клик по тексту переключает видимость панели управления
     setControlsVisible((prev) => !prev);
   };
 
-  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
-    if (e.touches.length !== 1) return;
-    touchStartRef.current = {
-      x: e.touches[0].clientX,
-      y: e.touches[0].clientY,
-    };
-  };
-
-  const handleTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
-    if (!touchStartRef.current || e.changedTouches.length === 0) return;
-    const dx = e.changedTouches[0].clientX - touchStartRef.current.x;
-    const dy = e.changedTouches[0].clientY - touchStartRef.current.y;
-    touchStartRef.current = null;
-
-    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) {
-      swipeHandledRef.current = true;
-      if (dx < -50) {
-        turnPage(1);
-      } else if (dx > 50) {
-        turnPage(-1);
-      }
-    }
-  };
-
   const activeTheme = THEMES[theme];
-  const currentPage = pages[pageIndex] ?? { start: 0, end: 0, text: '' };
-  const isFirst = pageIndex === 0;
-  const isLast = pageIndex === pages.length - 1;
 
   const activeFootnote = useMemo(() => {
     if (activeFnId === null || !chapter.footnotes) return null;
@@ -263,10 +198,10 @@ export const ReaderScreen: React.FC<ReaderScreenProps> = ({
         color: activeTheme.fg,
         display: 'flex',
         flexDirection: 'column',
-        userSelect: 'none',
+        overflow: 'hidden',
       }}
     >
-      {/* Верхний HUD (reader-hud-top) */}
+      {/* Верхний HUD */}
       {controlsVisible && (
         <header
           className="reader-hud-top"
@@ -274,14 +209,16 @@ export const ReaderScreen: React.FC<ReaderScreenProps> = ({
             backgroundColor: BRAND_COLORS.primaryBg,
             color: BRAND_COLORS.primaryText,
             borderBottom: '1px solid rgba(180, 83, 9, 0.4)',
-            zIndex: 25,
+            zIndex: 30,
+            flexShrink: 0,
+            position: 'relative',
           }}
         >
           <div
             style={{
-              maxWidth: '720px',
+              maxWidth: '760px',
               margin: '0 auto',
-              padding: '10px 14px',
+              padding: '10px 16px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
@@ -316,85 +253,132 @@ export const ReaderScreen: React.FC<ReaderScreenProps> = ({
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
                 color: BRAND_COLORS.primaryText,
+                padding: '0 4px',
               }}
             >
               {chapter.title}
             </div>
 
-            <button
-              type="button"
-              onClick={() => {
-                setActiveFnId(null);
-                setSettingsOpen(!settingsOpen);
-              }}
-              className="cursor-pointer whitespace-nowrap shrink-0"
-              style={{
-                background: settingsOpen
-                  ? BRAND_COLORS.amberAccent
-                  : 'rgba(255, 255, 255, 0.1)',
-                color: BRAND_COLORS.primaryText,
-                border: '1px solid rgba(180, 83, 9, 0.5)',
-                borderRadius: '10px',
-                padding: '7px 12px',
-                fontSize: '13px',
-                fontWeight: 700,
-              }}
-            >
-              Аа
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span
+                style={{
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  color: BRAND_COLORS.amberAccent,
+                  background: 'rgba(0, 0, 0, 0.25)',
+                  padding: '4px 8px',
+                  borderRadius: '6px',
+                  minWidth: '40px',
+                  textAlign: 'center',
+                }}
+              >
+                {scrollProgressPct}%
+              </span>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveFnId(null);
+                  setSettingsOpen(!settingsOpen);
+                }}
+                className="cursor-pointer whitespace-nowrap shrink-0"
+                style={{
+                  background: settingsOpen
+                    ? BRAND_COLORS.amberAccent
+                    : 'rgba(255, 255, 255, 0.1)',
+                  color: BRAND_COLORS.primaryText,
+                  border: '1px solid rgba(180, 83, 9, 0.5)',
+                  borderRadius: '10px',
+                  padding: '7px 12px',
+                  fontSize: '13px',
+                  fontWeight: 700,
+                }}
+              >
+                Аа
+              </button>
+            </div>
           </div>
+
+          {/* Индикатор прогресса чтения по всей ширине вверху */}
+          <div
+            style={{
+              position: 'absolute',
+              bottom: 0,
+              left: 0,
+              height: '3px',
+              width: `${scrollProgressPct}%`,
+              backgroundColor: BRAND_COLORS.amberAccent,
+              transition: 'width 0.15s ease-out',
+            }}
+          />
         </header>
       )}
 
-      {/* Основная область страницы (reader-page-area) */}
+      {/* Основная непрерывная область чтения полного текста главы */}
       <div
-        className="reader-page-area"
-        onClick={handleReaderTap}
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
         style={{
           position: 'relative',
           flex: 1,
-          maxWidth: '720px',
           width: '100%',
-          margin: '0 auto',
-          padding: '18px 22px 12px 20px',
-          overflowY: 'auto',
+          overflow: 'hidden',
           display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'space-between',
-          fontFamily: 'Georgia, "Lora", serif',
-          fontSize: `${fontSize}px`,
-          lineHeight: 1.6,
         }}
       >
-        {/* Кастомный вертикальный скроллбар режима чтения */}
-        <CustomScrollbar
-          mode="reader"
-          pageIndex={pageIndex}
-          totalPages={pages.length}
-          onPageChange={goToPage}
-        />
+        <div
+          ref={scrollContainerRef}
+          onScroll={handleScroll}
+          onClick={handleContentAreaClick}
+          className="reader-full-content-scroll"
+          style={{
+            flex: 1,
+            height: '100%',
+            overflowY: 'auto',
+            WebkitOverflowScrolling: 'touch',
+            padding: '24px 20px 48px 20px',
+            maxWidth: '760px',
+            margin: '0 auto',
+            fontFamily: 'Georgia, "Lora", serif',
+            fontSize: `${fontSize}px`,
+            lineHeight: 1.6,
+          }}
+        >
+          {/* Заголовок главы */}
+          <div
+            style={{
+              marginBottom: '28px',
+              paddingBottom: '16px',
+              borderBottom: '1px solid rgba(180, 83, 9, 0.3)',
+            }}
+          >
+            <div
+              style={{
+                fontSize: '12px',
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                letterSpacing: '0.08em',
+                color: BRAND_COLORS.amberAccent,
+                marginBottom: '6px',
+              }}
+            >
+              Глава {chapter.id}
+            </div>
 
-        <div>
-          {isFirst && (
             <h1
               style={{
-                fontSize: `${Math.round(fontSize * 1.15)}px`,
+                fontSize: `${Math.round(fontSize * 1.25)}px`,
                 fontWeight: 700,
                 lineHeight: 1.3,
-                margin: '0 0 14px 0',
-                paddingBottom: '10px',
-                borderBottom: '1px solid rgba(180, 83, 9, 0.25)',
+                margin: 0,
               }}
             >
               {chapter.title}
             </h1>
-          )}
+          </div>
 
-          <div>
+          {/* Полный текст главы с красивым форматированием */}
+          <div style={{ wordBreak: 'break-word' }}>
             {formatReaderPageContent({
-              text: currentPage.text,
+              text: chapter.content,
               baseFontSize: fontSize,
               arabicScale,
               footnotes: chapter.footnotes,
@@ -402,9 +386,143 @@ export const ReaderScreen: React.FC<ReaderScreenProps> = ({
               onToggleFootnote: handleToggleFootnote,
             })}
           </div>
+
+          {/* Блок завершения главы */}
+          <div
+            style={{
+              marginTop: '48px',
+              paddingTop: '28px',
+              borderTop: '2px dashed rgba(180, 83, 9, 0.35)',
+              textAlign: 'center',
+            }}
+          >
+            <div
+              style={{
+                fontSize: '18px',
+                letterSpacing: '8px',
+                color: BRAND_COLORS.amberAccent,
+                marginBottom: '12px',
+              }}
+            >
+              ❖ ❖ ❖
+            </div>
+
+            <div
+              style={{
+                fontSize: '14px',
+                fontWeight: 600,
+                color: activeTheme.fg,
+                opacity: 0.85,
+                marginBottom: '20px',
+              }}
+            >
+              Конец главы
+            </div>
+
+            {/* Кнопка прохождения теста, если есть проверочные вопросы */}
+            {chapter.quiz.length > 0 && (
+              <div style={{ marginBottom: '24px' }}>
+                <button
+                  type="button"
+                  onClick={() => onStartQuiz(chapter, 'reader')}
+                  className="cursor-pointer"
+                  style={{
+                    backgroundColor: '#B45309',
+                    color: '#FFFFFF',
+                    border: 'none',
+                    borderRadius: '14px',
+                    padding: '14px 24px',
+                    fontSize: '16px',
+                    fontWeight: 700,
+                    boxShadow: '0 4px 12px rgba(180, 83, 9, 0.3)',
+                    transition: 'transform 0.15s ease',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                  }}
+                >
+                  <span>Пройти тест по главе ({chapter.quiz.length} вопр.)</span>
+                  <span>→</span>
+                </button>
+              </div>
+            )}
+
+            {/* Навигационные кнопки в конце главы */}
+            <div
+              style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                justifyContent: 'center',
+                gap: '12px',
+                marginTop: '12px',
+              }}
+            >
+              {previousChapter && onOpenPreviousChapter && (
+                <button
+                  type="button"
+                  onClick={() => onOpenPreviousChapter(previousChapter)}
+                  className="cursor-pointer"
+                  style={{
+                    backgroundColor: activeTheme.surface,
+                    color: activeTheme.fg,
+                    border: '1px solid rgba(180, 83, 9, 0.4)',
+                    borderRadius: '12px',
+                    padding: '10px 16px',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                  }}
+                >
+                  ← Предыдущая глава: {previousChapter.title}
+                </button>
+              )}
+
+              {nextChapter && onOpenNextChapter && (
+                <button
+                  type="button"
+                  onClick={() => onOpenNextChapter(nextChapter)}
+                  className="cursor-pointer"
+                  style={{
+                    backgroundColor: '#15803D',
+                    color: '#FFFFFF',
+                    border: 'none',
+                    borderRadius: '12px',
+                    padding: '10px 18px',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    boxShadow: '0 2px 8px rgba(21, 128, 61, 0.25)',
+                  }}
+                >
+                  Следующая глава: {nextChapter.title} →
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={onBackToLibrary}
+                className="cursor-pointer"
+                style={{
+                  backgroundColor: 'transparent',
+                  color: BRAND_COLORS.amberAccent,
+                  border: '1px solid rgba(180, 83, 9, 0.4)',
+                  borderRadius: '12px',
+                  padding: '10px 16px',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                }}
+              >
+                Вернуться к оглавлению
+              </button>
+            </div>
+          </div>
         </div>
 
-        {/* Попап сноски в нижней части области чтения (fn-popup) */}
+        {/* Плавный вертикальный скроллбар, привязанный к контейнеру чтения */}
+        <CustomScrollbar
+          mode="reader"
+          containerRef={scrollContainerRef}
+        />
+
+        {/* Попап сноски в нижней части экрана */}
         <FootnotePopup
           activeFn={activeFootnote}
           theme={activeTheme}
@@ -426,120 +544,122 @@ export const ReaderScreen: React.FC<ReaderScreenProps> = ({
         onClose={() => setSettingsOpen(false)}
       />
 
-      {/* Нижний колонтитул (reader-footer) */}
-      <footer
-        className="reader-footer"
-        style={{
-          backgroundColor: activeTheme.surface,
-          borderTop: '1px solid rgba(180, 83, 9, 0.25)',
-          padding: '10px 16px',
-          zIndex: 25,
-        }}
-      >
-        <div
+      {/* Нижний колонтитул */}
+      {controlsVisible && (
+        <footer
+          className="reader-footer"
           style={{
-            maxWidth: '720px',
-            margin: '0 auto',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: '10px',
+            backgroundColor: activeTheme.surface,
+            borderTop: '1px solid rgba(180, 83, 9, 0.25)',
+            padding: '10px 16px',
+            zIndex: 30,
+            flexShrink: 0,
           }}
         >
-          {/* Кнопки перелистывания ← и → */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <button
-              type="button"
-              disabled={isFirst}
-              onClick={() => turnPage(-1)}
-              className="cursor-pointer disabled:opacity-35"
-              style={{
-                backgroundColor: BRAND_COLORS.primaryBg,
-                color: BRAND_COLORS.primaryText,
-                border: 'none',
-                borderRadius: '10px',
-                padding: '8px 14px',
-                fontSize: '14px',
-                fontWeight: 700,
-              }}
-            >
-              ←
-            </button>
-            <button
-              type="button"
-              disabled={isLast}
-              onClick={() => turnPage(1)}
-              className="cursor-pointer disabled:opacity-35"
-              style={{
-                backgroundColor: BRAND_COLORS.primaryBg,
-                color: BRAND_COLORS.primaryText,
-                border: 'none',
-                borderRadius: '10px',
-                padding: '8px 14px',
-                fontSize: '14px',
-                fontWeight: 700,
-              }}
-            >
-              →
-            </button>
-          </div>
-
-          {/* Счетчик страниц по центру */}
           <div
             style={{
-              fontFamily: 'monospace',
-              fontSize: '13px',
-              fontWeight: 600,
+              maxWidth: '760px',
+              margin: '0 auto',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '10px',
             }}
           >
-            Стр. {pageIndex + 1} / {pages.length}
-          </div>
-
-          {/* Кнопка действия справа на последней странице */}
-          <div style={{ minWidth: '110px', display: 'flex', justifyContent: 'flex-end' }}>
-            {isLast && chapter.quiz.length > 0 && (
+            {/* Кнопка на предыдущую главу */}
+            {previousChapter && onOpenPreviousChapter ? (
               <button
                 type="button"
-                onClick={() => onStartQuiz(chapter, 'reader')}
-                className="cursor-pointer whitespace-nowrap shrink-0"
+                onClick={() => onOpenPreviousChapter(previousChapter)}
+                className="cursor-pointer"
                 style={{
-                  background: '#B45309',
-                  color: '#FFFFFF',
+                  backgroundColor: BRAND_COLORS.primaryBg,
+                  color: BRAND_COLORS.primaryText,
                   border: 'none',
                   borderRadius: '10px',
-                  padding: '9px 14px',
+                  padding: '8px 12px',
                   fontSize: '13px',
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                }}
+              >
+                ← Пред. глава
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={onBackToLibrary}
+                className="cursor-pointer"
+                style={{
+                  backgroundColor: 'transparent',
+                  color: activeTheme.fg,
+                  opacity: 0.75,
+                  border: '1px solid rgba(180, 83, 9, 0.3)',
+                  borderRadius: '10px',
+                  padding: '8px 12px',
+                  fontSize: '12px',
                   fontWeight: 600,
                 }}
               >
-                Пройти тест →
+                Оглавление
               </button>
             )}
 
-            {isLast &&
-              chapter.quiz.length === 0 &&
-              nextChapter &&
-              onOpenNextChapter && (
+            {/* Прогресс по центру */}
+            <div
+              style={{
+                fontFamily: 'monospace',
+                fontSize: '13px',
+                fontWeight: 600,
+                color: activeTheme.fg,
+              }}
+            >
+              Прогресс: {scrollProgressPct}%
+            </div>
+
+            {/* Кнопка перехода к тесту или следующей главе */}
+            <div>
+              {chapter.quiz.length > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => onStartQuiz(chapter, 'reader')}
+                  className="cursor-pointer whitespace-nowrap"
+                  style={{
+                    background: '#B45309',
+                    color: '#FFFFFF',
+                    border: 'none',
+                    borderRadius: '10px',
+                    padding: '8px 14px',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                  }}
+                >
+                  Тест →
+                </button>
+              ) : nextChapter && onOpenNextChapter ? (
                 <button
                   type="button"
                   onClick={() => onOpenNextChapter(nextChapter)}
-                  className="cursor-pointer whitespace-nowrap shrink-0"
+                  className="cursor-pointer whitespace-nowrap"
                   style={{
                     background: '#15803D',
                     color: '#FFFFFF',
                     border: 'none',
                     borderRadius: '10px',
-                    padding: '9px 14px',
+                    padding: '8px 14px',
                     fontSize: '13px',
                     fontWeight: 600,
                   }}
                 >
-                  Следующая глава →
+                  След. глава →
                 </button>
-              )}
+              ) : null}
+            </div>
           </div>
-        </div>
-      </footer>
+        </footer>
+      )}
     </div>
   );
 };

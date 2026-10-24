@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 
 export interface CustomScrollbarProps {
   mode: 'library' | 'reader';
+  containerRef?: React.RefObject<HTMLDivElement | null>;
   pageIndex?: number;
   totalPages?: number;
   onPageChange?: (pageIndex: number) => void;
@@ -9,6 +10,7 @@ export interface CustomScrollbarProps {
 
 export const CustomScrollbar: React.FC<CustomScrollbarProps> = ({
   mode,
+  containerRef,
   pageIndex = 0,
   totalPages = 1,
   onPageChange,
@@ -32,7 +34,7 @@ export const CustomScrollbar: React.FC<CustomScrollbarProps> = ({
       if (!isDraggingRef.current) {
         setIsActive(false);
       }
-    }, 1200);
+    }, 1400);
   }, []);
 
   useEffect(() => {
@@ -90,9 +92,58 @@ export const CustomScrollbar: React.FC<CustomScrollbarProps> = ({
     };
   }, [mode, triggerActive]);
 
-  // Mode 2: Reader mode synced with pageIndex / (totalPages - 1)
+  // Mode 2: Reader continuous scroll mode via containerRef
   useEffect(() => {
-    if (mode !== 'reader') return;
+    if (mode !== 'reader' || !containerRef) return;
+
+    const el = containerRef.current;
+    if (!el) return;
+
+    const updateContainerScroll = () => {
+      const scrollTop = el.scrollTop;
+      const clientHeight = el.clientHeight;
+      const scrollHeight = el.scrollHeight;
+
+      if (scrollHeight <= clientHeight || clientHeight <= 0) {
+        setThumbStyle({ top: '0%', height: '100%' });
+        return;
+      }
+
+      const maxScroll = scrollHeight - clientHeight;
+      const heightPct = Math.max(14, Math.min(100, (clientHeight / scrollHeight) * 100));
+      const scrollRatio = Math.min(1, Math.max(0, scrollTop / maxScroll));
+      const topPct = scrollRatio * (100 - heightPct);
+
+      setThumbStyle({
+        top: `${topPct.toFixed(2)}%`,
+        height: `${heightPct.toFixed(2)}%`,
+      });
+    };
+
+    const handleScroll = () => {
+      updateContainerScroll();
+      triggerActive();
+    };
+
+    updateContainerScroll();
+    el.addEventListener('scroll', handleScroll, { passive: true });
+    window.addEventListener('resize', updateContainerScroll);
+
+    const resizeObserver = new ResizeObserver(() => {
+      updateContainerScroll();
+    });
+    resizeObserver.observe(el);
+
+    return () => {
+      el.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('resize', updateContainerScroll);
+      resizeObserver.disconnect();
+    };
+  }, [mode, containerRef, triggerActive]);
+
+  // Fallback for legacy pageIndex/totalPages if containerRef is not passed
+  useEffect(() => {
+    if (mode !== 'reader' || containerRef) return;
 
     const safeTotal = Math.max(1, totalPages);
     const safeIndex = Math.min(Math.max(0, pageIndex), safeTotal - 1);
@@ -111,36 +162,54 @@ export const CustomScrollbar: React.FC<CustomScrollbarProps> = ({
       height: `${heightPct.toFixed(2)}%`,
     });
     triggerActive();
-  }, [mode, pageIndex, totalPages, triggerActive]);
+  }, [mode, containerRef, pageIndex, totalPages, triggerActive]);
 
-  const selectPageFromClientY = useCallback(
+  const scrollToClientY = useCallback(
     (clientY: number) => {
-      if (mode !== 'reader' || !onPageChange || !trackRef.current) return;
-      const safeTotal = Math.max(1, totalPages);
-      if (safeTotal <= 1) return;
+      if (mode !== 'reader' || !trackRef.current) return;
 
-      const rect = trackRef.current.getBoundingClientRect();
-      if (rect.height <= 0) return;
+      if (containerRef?.current) {
+        const el = containerRef.current;
+        const rect = trackRef.current.getBoundingClientRect();
+        if (rect.height <= 0) return;
 
-      const relativeY = Math.min(Math.max(0, clientY - rect.top), rect.height);
-      const ratio = relativeY / rect.height;
-      const targetPage = Math.round(ratio * (safeTotal - 1));
-      onPageChange(targetPage);
-      triggerActive();
+        const maxScroll = el.scrollHeight - el.clientHeight;
+        if (maxScroll <= 0) return;
+
+        const relativeY = Math.min(Math.max(0, clientY - rect.top), rect.height);
+        const ratio = relativeY / rect.height;
+        el.scrollTop = ratio * maxScroll;
+        triggerActive();
+        return;
+      }
+
+      if (onPageChange) {
+        const safeTotal = Math.max(1, totalPages);
+        if (safeTotal <= 1) return;
+
+        const rect = trackRef.current.getBoundingClientRect();
+        if (rect.height <= 0) return;
+
+        const relativeY = Math.min(Math.max(0, clientY - rect.top), rect.height);
+        const ratio = relativeY / rect.height;
+        const targetPage = Math.round(ratio * (safeTotal - 1));
+        onPageChange(targetPage);
+        triggerActive();
+      }
     },
-    [mode, onPageChange, totalPages, triggerActive]
+    [mode, containerRef, onPageChange, totalPages, triggerActive]
   );
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (mode !== 'reader') return;
     isDraggingRef.current = true;
     e.currentTarget.setPointerCapture(e.pointerId);
-    selectPageFromClientY(e.clientY);
+    scrollToClientY(e.clientY);
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     if (mode !== 'reader' || !isDraggingRef.current) return;
-    selectPageFromClientY(e.clientY);
+    scrollToClientY(e.clientY);
   };
 
   const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -156,7 +225,7 @@ export const CustomScrollbar: React.FC<CustomScrollbarProps> = ({
 
   const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
     if (mode !== 'reader' || e.touches.length === 0) return;
-    selectPageFromClientY(e.touches[0].clientY);
+    scrollToClientY(e.touches[0].clientY);
   };
 
   return (

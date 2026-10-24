@@ -17,7 +17,7 @@ export interface QuizQuestion {
 
 export interface ChapterData {
   id: number; // 501..581
-  bookId: number; // 5
+  bookId?: number; // 5
   chapterOrder: number; // 1..81
   title: string;
   content: string;
@@ -29,10 +29,10 @@ export interface BookData {
   id: number; // 5
   title: string; // 'Простые благодеяния'
   author: string; // 'Шейх Мухаммад Салих аль-Мунаджид'
-  year: string; // '1440 г.х.'
-  genre: string;
+  year?: string; // '1440 г.х.'
+  genre?: string;
   description: string;
-  coverPalette: {
+  coverPalette?: {
     bg: string;
     accent: string;
     text: string;

@@ -206,6 +206,8 @@ export default function App() {
   const currentIndex = EASY_GOOD_DEEDS_BOOK.chapters.findIndex(
     (ch) => ch.id === activeChapter.id
   );
+  const previousChapter =
+    currentIndex > 0 ? EASY_GOOD_DEEDS_BOOK.chapters[currentIndex - 1] : null;
   const nextChapter =
     currentIndex >= 0 && currentIndex + 1 < EASY_GOOD_DEEDS_BOOK.chapters.length
       ? EASY_GOOD_DEEDS_BOOK.chapters[currentIndex + 1]
@@ -217,6 +219,7 @@ export default function App() {
     return (
       <ReaderScreen
         chapter={activeChapter}
+        previousChapter={previousChapter}
         nextChapter={nextChapter}
         initialOffset={chapterProg.offset}
         theme={theme}
@@ -237,6 +240,10 @@ export default function App() {
           setScreen('library');
         }}
         onStartQuiz={handleStartQuiz}
+        onOpenPreviousChapter={(prevCh) => {
+          updateChapterOffset(prevCh.id, 0);
+          handleOpenChapter(prevCh);
+        }}
         onOpenNextChapter={(nextCh) => {
           updateChapterOffset(nextCh.id, 0);
           handleOpenChapter(nextCh);
