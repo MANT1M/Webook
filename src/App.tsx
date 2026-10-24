@@ -36,9 +36,14 @@ export default function App() {
   } = useReaderState();
 
   const [screen, setScreen] = useState<ScreenType>('library');
-  const [activeChapter, setActiveChapter] = useState<ChapterData | null>(
-    EASY_GOOD_DEEDS_BOOK.chapters[0] ?? null
-  );
+  const [selectedBookId, setSelectedBookId] = useState<string | null>(null);
+  const [activeChapter, setActiveChapter] = useState<ChapterData | null>(() => {
+    return (
+      EASY_GOOD_DEEDS_BOOK.chapters.find((c) => c.chapterOrder === 1) ||
+      EASY_GOOD_DEEDS_BOOK.chapters[0] ||
+      null
+    );
+  });
   const [quizOrigin, setQuizOrigin] = useState<QuizOrigin>('library');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [activeFnId, setActiveFnId] = useState<number | null>(null);
@@ -46,20 +51,25 @@ export default function App() {
 
   const searchPushedRef = useRef<boolean>(false);
 
-  // Обработка начального URL-хэша (#settings, #reader-xxx, #quiz-xxx)
+  // Обработка начального URL-хэша (#settings, #toc, #reader-xxx, #quiz-xxx)
   useEffect(() => {
     try {
       const hash = window.location.hash.replace(/^#/, '');
       if (!hash) return;
 
       if (hash === 'settings') {
+        setSelectedBookId('prostye-blagodeyaniya');
         setScreen('reader');
         setSettingsOpen(true);
+      } else if (hash === 'toc' || hash === 'contents') {
+        setSelectedBookId('prostye-blagodeyaniya');
+        setScreen('library');
       } else if (hash.startsWith('reader-')) {
         const chapterId = Number(hash.replace('reader-', ''));
         const found = EASY_GOOD_DEEDS_BOOK.chapters.find((c) => c.id === chapterId);
         if (found) {
           setActiveChapter(found);
+          setSelectedBookId('prostye-blagodeyaniya');
           setScreen('reader');
         }
       } else if (hash.startsWith('quiz-')) {
@@ -67,11 +77,20 @@ export default function App() {
         const found = EASY_GOOD_DEEDS_BOOK.chapters.find((c) => c.id === chapterId);
         if (found) {
           setActiveChapter(found);
+          setSelectedBookId('prostye-blagodeyaniya');
           setScreen('quiz');
         }
       }
     } catch {
       // Ignore URL parsing errors
+    }
+  }, []);
+
+  // Обработчик выбора книги (переход в оглавление или возврат в каталог)
+  const handleSelectBook = useCallback((bookId: string | null) => {
+    setSelectedBookId(bookId);
+    if (bookId) {
+      pushHistoryTag('toc');
     }
   }, []);
 
@@ -93,6 +112,7 @@ export default function App() {
     setActiveChapter(chapter);
     setActiveFnId(null);
     setSettingsOpen(false);
+    setSelectedBookId('prostye-blagodeyaniya');
     setScreen('reader');
     pushHistoryTag(`reader-${chapter.id}`);
   }, []);
@@ -128,6 +148,7 @@ export default function App() {
       setQuizOrigin(origin);
       setActiveFnId(null);
       setSettingsOpen(false);
+      setSelectedBookId('prostye-blagodeyaniya');
       setScreen('quiz');
       pushHistoryTag(`quiz-${chapter.id}`);
     },
@@ -160,7 +181,13 @@ export default function App() {
       return true;
     }
 
-    // 5) Иначе если в оглавлении активен поисковый запрос (searchQuery !== '') -> очистить строку поиска
+    // 5) Иначе если открыто оглавление книги (selectedBookId !== null) -> вернуться в каталог
+    if (selectedBookId !== null) {
+      setSelectedBookId(null);
+      return true;
+    }
+
+    // 6) Иначе если в каталоге активен поисковый запрос (searchQuery !== '') -> очистить строку поиска
     if (searchQuery !== '') {
       setSearchQuery('');
       searchPushedRef.current = false;
@@ -168,7 +195,7 @@ export default function App() {
     }
 
     return false;
-  }, [activeFnId, settingsOpen, screen, quizOrigin, searchQuery]);
+  }, [activeFnId, settingsOpen, screen, quizOrigin, selectedBookId, searchQuery]);
 
   // Слушатели popstate и клавиши Escape
   useEffect(() => {
@@ -203,6 +230,8 @@ export default function App() {
         onSearchQueryChange={handleSearchQueryChange}
         onOpenChapter={handleOpenChapter}
         onStartQuiz={handleStartQuiz}
+        selectedBookId={selectedBookId}
+        onSelectBook={handleSelectBook}
       />
     );
   }
