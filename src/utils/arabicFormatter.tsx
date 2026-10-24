@@ -117,6 +117,7 @@ export function formatMixedArabicHtml(
             aria-expanded={isOpen}
             title={isOpen ? `Закрыть сноску ${fnNumber}` : `Открыть сноску ${fnNumber}`}
             onClick={(e) => {
+              e.preventDefault();
               e.stopPropagation();
               onToggleFootnote(fnNumber);
             }}

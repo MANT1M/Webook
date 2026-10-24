@@ -98,14 +98,18 @@ export default function App() {
   }, []);
 
   // Открытие/закрытие сноски
-  const handleChangeActiveFnId = useCallback((fnId: number | null) => {
-    setActiveFnId((prev) => {
-      if (prev === null && fnId !== null) {
-        pushHistoryTag(`fn-${fnId}`);
-      }
-      return fnId;
-    });
-  }, []);
+  const handleChangeActiveFnId = useCallback(
+    (action: number | null | ((prev: number | null) => number | null)) => {
+      setActiveFnId((prev) => {
+        const next = typeof action === 'function' ? action(prev) : action;
+        if (prev === null && next !== null) {
+          pushHistoryTag(`fn-${next}`);
+        }
+        return next;
+      });
+    },
+    []
+  );
 
   // Открытие/закрытие настроек
   const handleChangeSettingsOpen = useCallback((open: boolean) => {

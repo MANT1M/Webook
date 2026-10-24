@@ -16,7 +16,9 @@ export interface ReaderScreenProps {
   fontSize: number;
   arabicScale: number;
   activeFnId?: number | null;
-  onChangeActiveFnId?: (fnId: number | null) => void;
+  onChangeActiveFnId?: (
+    fnId: number | null | ((prev: number | null) => number | null)
+  ) => void;
   settingsOpen?: boolean;
   onChangeSettingsOpen?: (open: boolean) => void;
   onChangeTheme: (theme: ThemeMode) => void;
@@ -54,6 +56,8 @@ export const ReaderScreen: React.FC<ReaderScreenProps> = ({
 }) => {
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const saveTimeoutRef = useRef<number | null>(null);
+  const currentChapterIdRef = useRef<number | null>(null);
+  const lastToggleTimeRef = useRef<number>(0);
 
   const [controlsVisible, setControlsVisible] = useState<boolean>(true);
   const [internalSettingsOpen, setInternalSettingsOpen] = useState<boolean>(false);
@@ -82,7 +86,7 @@ export const ReaderScreen: React.FC<ReaderScreenProps> = ({
       : internalActiveFnId;
 
   const setActiveFnId = useCallback(
-    (next: number | null) => {
+    (next: number | null | ((prev: number | null) => number | null)) => {
       if (onChangeActiveFnId) {
         onChangeActiveFnId(next);
       } else {
@@ -93,7 +97,14 @@ export const ReaderScreen: React.FC<ReaderScreenProps> = ({
   );
 
   // Восстановление позиции прокрутки при открытии или смене главы
+  // Важно: зависимость ТОЛЬКО chapter.id, чтобы debounce-обновления позиции во время чтения
+  // не вызывали сброс сносок (setActiveFnId(null)) и не дергали скролл!
   useEffect(() => {
+    if (currentChapterIdRef.current === chapter.id) {
+      return;
+    }
+    currentChapterIdRef.current = chapter.id;
+
     setActiveFnId(null);
     setSettingsOpen(false);
 
@@ -101,7 +112,6 @@ export const ReaderScreen: React.FC<ReaderScreenProps> = ({
     if (!el) return;
 
     if (initialOffset > 0) {
-      // Небольшая задержка для завершения рендера и применения шрифтов
       const timer = window.setTimeout(() => {
         if (scrollContainerRef.current) {
           scrollContainerRef.current.scrollTop = initialOffset;
@@ -112,7 +122,7 @@ export const ReaderScreen: React.FC<ReaderScreenProps> = ({
       el.scrollTop = 0;
       setScrollProgressPct(0);
     }
-  }, [chapter.id, initialOffset, setActiveFnId, setSettingsOpen]);
+  }, [chapter.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Обработка прокрутки: расчет прогресса и сохранение позиции
   const handleScroll = useCallback(() => {
@@ -154,16 +164,28 @@ export const ReaderScreen: React.FC<ReaderScreenProps> = ({
 
   const handleToggleFootnote = useCallback(
     (fnId: number) => {
-      setActiveFnId(activeFnId === fnId ? null : fnId);
+      const now = Date.now();
+      // Защита от дублирующих срабатываний touch + click событий на мобильных экранах
+      if (now - lastToggleTimeRef.current < 250) {
+        return;
+      }
+      lastToggleTimeRef.current = now;
+      setActiveFnId((prev) => (prev === fnId ? null : fnId));
     },
-    [activeFnId, setActiveFnId]
+    [setActiveFnId]
   );
 
   // Нажатие на область чтения: закрывает сноску/настройки или переключает HUD
   const handleContentAreaClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    // Если клик был по интерактивному элементу (кнопка, сноска, ссылка) — не переключаем HUD
     const target = e.target as HTMLElement;
-    if (target.closest('button') || target.closest('.fn-badge') || target.closest('a')) {
+    // Если клик был по интерактивному элементу или модальному окну — не закрываем и не переключаем HUD
+    if (
+      target.closest('button') ||
+      target.closest('.fn-badge') ||
+      target.closest('.fn-popup') ||
+      target.closest('.fn-backdrop') ||
+      target.closest('a')
+    ) {
       return;
     }
 
@@ -521,16 +543,16 @@ export const ReaderScreen: React.FC<ReaderScreenProps> = ({
           mode="reader"
           containerRef={scrollContainerRef}
         />
-
-        {/* Попап сноски в нижней части экрана */}
-        <FootnotePopup
-          activeFn={activeFootnote}
-          theme={activeTheme}
-          fontSize={fontSize}
-          arabicScale={arabicScale}
-          onClose={() => setActiveFnId(null)}
-        />
       </div>
+
+      {/* Попап сноски в виде фиксированного модального окна снизу экрана */}
+      <FootnotePopup
+        activeFn={activeFootnote}
+        theme={activeTheme}
+        fontSize={fontSize}
+        arabicScale={arabicScale}
+        onClose={() => setActiveFnId(null)}
+      />
 
       {/* Нижняя шторка настроек чтения (SettingsSheet) */}
       <SettingsSheet
