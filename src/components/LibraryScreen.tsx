@@ -21,6 +21,8 @@ import { AuthModal } from './AuthModal';
 import { BookDetailsModal } from './BookDetailsModal';
 import { BookCoverRenderer } from './BookCoverRenderer';
 import { CATALOG_BOOKS, CatalogBook } from '../data/catalogBooks';
+import { useVisitCounter } from '../hooks/useVisitCounter';
+import { VisitorCounterBadge } from './VisitorCounterBadge';
 
 export type QuizOrigin = 'library' | 'reader';
 
@@ -48,6 +50,8 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
   const [internalSearchQuery, setInternalSearchQuery] = useState<string>('');
   const [internalSelectedBookId, setInternalSelectedBookId] =
     useState<string | null>(null);
+
+  const visitStats = useVisitCounter();
 
   const [chapterSearchQuery, setChapterSearchQuery] = useState<string>('');
   const [chapterFilter, setChapterFilter] = useState<'all' | 'unread' | 'passed'>('all');
@@ -271,8 +275,10 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
               </div>
             </div>
 
-            {/* Правая часть: Войти и Файлы */}
+            {/* Правая часть: счетчик визитов, Войти и Файлы */}
             <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+              <VisitorCounterBadge stats={visitStats} variant="header" />
+
               <button
                 type="button"
                 onClick={() => setAuthModalOpen(true)}
@@ -673,16 +679,19 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
 
         {/* ФУТЕР БИБЛИОТЕКИ */}
         <footer className="border-t border-slate-200 bg-white mt-auto py-6">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
-            <div className="flex items-center gap-2">
-              <BookOpen className="w-4 h-4 text-[#06392c]" />
-              <span className="font-serif font-bold text-slate-800">
-                Библиотека благодеяний
-              </span>
-              <span>— электронная коллекция полезных книг</span>
-            </div>
-            <div>
-              «Простые благодеяния» · Муфтий Мухаммад Таки Усмани · Интерактивный ридер
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-5">
+            <VisitorCounterBadge stats={visitStats} variant="footer" />
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
+              <div className="flex items-center gap-2">
+                <BookOpen className="w-4 h-4 text-[#06392c]" />
+                <span className="font-serif font-bold text-slate-800">
+                  Библиотека благодеяний
+                </span>
+                <span>— электронная коллекция полезных книг</span>
+              </div>
+              <div>
+                «Простые благодеяния» · Муфтий Мухаммад Таки Усмани · Интерактивный ридер
+              </div>
             </div>
           </div>
         </footer>
@@ -727,8 +736,10 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
             </h1>
           </div>
 
-          {/* Правая часть: кнопка «Войти / Регистрация» и кнопка «Файлы» */}
+          {/* Правая часть: счетчик визитов, кнопка «Войти / Регистрация» и кнопка «Файлы» */}
           <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
+            <VisitorCounterBadge stats={visitStats} variant="header" />
+
             {/* Кнопка Войти / Регистрация */}
             <button
               type="button"
@@ -801,6 +812,11 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
                   <X className="w-3.5 h-3.5" />
                 </button>
               )}
+            </div>
+
+            {/* Статистика читателей и посещений под поисковой строкой */}
+            <div className="mt-4 flex justify-center">
+              <VisitorCounterBadge stats={visitStats} variant="banner" />
             </div>
           </div>
         </section>
@@ -971,16 +987,19 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
 
       {/* ФУТЕР БИБЛИОТЕКИ */}
       <footer className="border-t border-slate-200 bg-white mt-auto py-6">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
-          <div className="flex items-center gap-2">
-            <BookOpen className="w-4 h-4 text-[#06392c]" />
-            <span className="font-serif font-bold text-slate-800">
-              Библиотека благодеяний
-            </span>
-            <span>— электронная коллекция полезных книг</span>
-          </div>
-          <div>
-            «Простые благодеяния» · Муфтий Мухаммад Таки Усмани · Интерактивный ридер
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-5">
+          <VisitorCounterBadge stats={visitStats} variant="footer" />
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
+            <div className="flex items-center gap-2">
+              <BookOpen className="w-4 h-4 text-[#06392c]" />
+              <span className="font-serif font-bold text-slate-800">
+                Библиотека благодеяний
+              </span>
+              <span>— электронная коллекция полезных книг</span>
+            </div>
+            <div>
+              «Простые благодеяния» · Муфтий Мухаммад Таки Усмани · Интерактивный ридер
+            </div>
           </div>
         </div>
       </footer>

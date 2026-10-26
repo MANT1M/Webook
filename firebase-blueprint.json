@@ -1,0 +1,31 @@
+{
+  "entities": {
+    "AppStats": {
+      "title": "AppStats",
+      "description": "Global statistics for the Islamic library web application including total visits and readers",
+      "type": "object",
+      "properties": {
+        "totalVisits": {
+          "type": "number",
+          "description": "Total number of visits recorded across all readers"
+        },
+        "uniqueVisitors": {
+          "type": "number",
+          "description": "Total unique reader devices recorded"
+        },
+        "lastUpdated": {
+          "type": "string",
+          "maxLength": 64,
+          "description": "ISO timestamp string of when the stats were last modified"
+        }
+      },
+      "required": ["totalVisits"]
+    }
+  },
+  "firestore": {
+    "/app_stats/{statsId}": {
+      "schema": "AppStats",
+      "description": "Public aggregated statistics for the library web application"
+    }
+  }
+}

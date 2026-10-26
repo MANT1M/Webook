@@ -1,0 +1,44 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidStats(data) {
+      return data.keys().hasAll(['totalVisits']) &&
+        data.keys().hasOnly(['totalVisits', 'uniqueVisitors', 'lastUpdated']) &&
+        data.totalVisits is number &&
+        data.totalVisits >= 0 &&
+        (!('uniqueVisitors' in data) || (data.uniqueVisitors is number && data.uniqueVisitors >= 0)) &&
+        (!('lastUpdated' in data) || (data.lastUpdated is string && data.lastUpdated.size() <= 64));
+    }
+
+    // Default deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Global application statistics (visits counter)
+    match /app_stats/{statsId} {
+      allow get: if isValidId(statsId);
+      allow list: if false;
+      allow create: if isValidId(statsId) && isValidStats(incoming());
+      allow update: if isValidId(statsId) &&
+                    isValidStats(incoming()) &&
+                    incoming().diff(existing()).affectedKeys().hasOnly(['totalVisits', 'uniqueVisitors', 'lastUpdated']) &&
+                    incoming().totalVisits >= existing().totalVisits;
+      allow delete: if false;
+    }
+  }
+}
