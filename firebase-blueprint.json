@@ -17,6 +17,19 @@
           "type": "string",
           "maxLength": 64,
           "description": "ISO timestamp string of when the stats were last modified"
+        },
+        "dailyDate": {
+          "type": "string",
+          "maxLength": 16,
+          "description": "Current date in YYYY-MM-DD format for tracking daily unique readers"
+        },
+        "dailyUniqueVisitors": {
+          "type": "number",
+          "description": "Number of unique readers recorded for the current day (dailyDate)"
+        },
+        "activeReaders": {
+          "type": "object",
+          "description": "Map of deviceId to last activity epoch timestamp (ms) for tracking online readers active within the last 5 minutes"
         }
       },
       "required": ["totalVisits"]

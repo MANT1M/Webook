@@ -17,11 +17,14 @@ service cloud.firestore {
 
     function isValidStats(data) {
       return data.keys().hasAll(['totalVisits']) &&
-        data.keys().hasOnly(['totalVisits', 'uniqueVisitors', 'lastUpdated']) &&
+        data.keys().hasOnly(['totalVisits', 'uniqueVisitors', 'lastUpdated', 'dailyDate', 'dailyUniqueVisitors', 'activeReaders']) &&
         data.totalVisits is number &&
         data.totalVisits >= 0 &&
         (!('uniqueVisitors' in data) || (data.uniqueVisitors is number && data.uniqueVisitors >= 0)) &&
-        (!('lastUpdated' in data) || (data.lastUpdated is string && data.lastUpdated.size() <= 64));
+        (!('lastUpdated' in data) || (data.lastUpdated is string && data.lastUpdated.size() <= 64)) &&
+        (!('dailyDate' in data) || (data.dailyDate is string && data.dailyDate.size() <= 16)) &&
+        (!('dailyUniqueVisitors' in data) || (data.dailyUniqueVisitors is number && data.dailyUniqueVisitors >= 0)) &&
+        (!('activeReaders' in data) || (data.activeReaders is map && data.activeReaders.size() <= 500));
     }
 
     // Default deny catch-all
@@ -36,7 +39,7 @@ service cloud.firestore {
       allow create: if isValidId(statsId) && isValidStats(incoming());
       allow update: if isValidId(statsId) &&
                     isValidStats(incoming()) &&
-                    incoming().diff(existing()).affectedKeys().hasOnly(['totalVisits', 'uniqueVisitors', 'lastUpdated']) &&
+                    incoming().diff(existing()).affectedKeys().hasOnly(['totalVisits', 'uniqueVisitors', 'lastUpdated', 'dailyDate', 'dailyUniqueVisitors', 'activeReaders']) &&
                     incoming().totalVisits >= existing().totalVisits;
       allow delete: if false;
     }
