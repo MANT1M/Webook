@@ -18,15 +18,37 @@ export const BookCoverRenderer: React.FC<BookCoverRendererProps> = ({
 
   // Если передана ссылка на картинку обложки и нет ошибки загрузки
   if (coverImageUrl && !hasError) {
+    const isPageSheetCover = coverImageUrl.includes('abu_hanifa_cover');
+
     return (
       <div className="w-full relative aspect-[403/493] rounded-lg overflow-hidden shadow-xs hover:shadow-md select-none border border-slate-200/80 bg-[#f4f5f6] flex items-center justify-center transition-all duration-300">
-        <img
-          src={coverImageUrl}
-          alt={`${title} — ${author}`}
-          className="w-full h-full object-contain transition-transform duration-300 group-hover:scale-[1.02]"
-          onError={() => setHasError(true)}
-          loading="lazy"
-        />
+        {isPageSheetCover ? (
+          <div className="w-[74%] h-[88%] bg-white rounded-r-[3px] rounded-l-[2px] shadow-[0_8px_18px_rgba(0,0,0,0.13),0_2px_5px_rgba(0,0,0,0.08)] relative overflow-hidden flex items-center justify-center transition-transform duration-300 group-hover:scale-[1.02]">
+            {/* Реалистичный корешок книги слева */}
+            <div
+              className="absolute inset-y-0 left-0 w-3.5 pointer-events-none z-10"
+              style={{
+                background:
+                  'linear-gradient(to right, rgba(0,0,0,0.12) 0%, rgba(255,255,255,0.6) 28%, rgba(0,0,0,0.08) 58%, rgba(0,0,0,0) 100%)',
+              }}
+            />
+            <img
+              src={coverImageUrl}
+              alt={`${title} — ${author}`}
+              className="w-full h-full object-contain pl-1"
+              onError={() => setHasError(true)}
+              loading="lazy"
+            />
+          </div>
+        ) : (
+          <img
+            src={coverImageUrl}
+            alt={`${title} — ${author}`}
+            className="w-full h-full object-contain transition-transform duration-300 group-hover:scale-[1.02]"
+            onError={() => setHasError(true)}
+            loading="lazy"
+          />
+        )}
       </div>
     );
   }

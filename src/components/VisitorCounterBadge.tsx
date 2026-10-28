@@ -84,7 +84,7 @@ export const VisitorCounterBadge: React.FC<VisitorCounterBadgeProps> = ({
               <Users className="w-4 h-4" />
             </div>
             <div>
-              <div className="text-[11px] text-slate-400">Читателей онлайн</div>
+              <div className="text-[11px] text-slate-400">Читателей библиотеки</div>
               <div className="font-bold text-sm text-slate-900">
                 {loading && uniqueVisitors === 0 ? 'Загрузка...' : `${formattedReaders}`}
               </div>

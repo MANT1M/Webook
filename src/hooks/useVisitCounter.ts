@@ -30,9 +30,10 @@ export function useVisitCounter(): VisitStats {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // 1. Обновление персональной статистики в localStorage
+    // 1. Обновление персональной статистики в localStorage (с привязкой к сессии)
     try {
       const today = new Date().toISOString().slice(0, 10);
+      const sessionAlreadyCounted = sessionStorage.getItem('library_session_counted');
       const savedPersonalVisits = parseInt(
         localStorage.getItem('library_personal_visits') || '0',
         10
@@ -60,11 +61,19 @@ export function useVisitCounter(): VisitStats {
         newStreak = 1;
       }
 
-      const nextPersonal = savedPersonalVisits + 1;
+      // Увеличиваем личные посещения только если это новая сессия
+      let nextPersonal = savedPersonalVisits;
+      if (!sessionAlreadyCounted) {
+        nextPersonal = savedPersonalVisits + 1;
+        localStorage.setItem('library_personal_visits', String(nextPersonal));
+      } else if (nextPersonal === 0) {
+        nextPersonal = 1;
+        localStorage.setItem('library_personal_visits', '1');
+      }
+
       setPersonalVisits(nextPersonal);
       setReadingStreak(newStreak);
 
-      localStorage.setItem('library_personal_visits', String(nextPersonal));
       localStorage.setItem('library_last_visit_date', today);
       localStorage.setItem('library_reading_streak', String(newStreak));
     } catch {

@@ -20,6 +20,10 @@ export interface ChapterData {
   bookId?: number; // 5
   chapterOrder: number; // 1..81
   title: string;
+  parentChapterTitle?: string; // Название родительской главы (если это подглава)
+  parentChapterNumber?: number; // Номер родительской главы в книге
+  subchapterOrder?: number; // Порядковый номер подглавы внутри главы (1..N)
+  subchapterCount?: number; // Общее количество подглав в главе
   content: string;
   footnotes?: ChapterFootnote[];
   quiz: QuizQuestion[];

@@ -11,6 +11,8 @@ export interface ReaderScreenProps {
   chapter: ChapterData;
   previousChapter?: ChapterData | null;
   nextChapter?: ChapterData | null;
+  siblingSubchapters?: ChapterData[];
+  onSelectSubchapter?: (subchapter: ChapterData) => void;
   initialOffset: number;
   theme: ThemeMode;
   fontSize: number;
@@ -36,6 +38,7 @@ export const ReaderScreen: React.FC<ReaderScreenProps> = ({
   chapter,
   previousChapter = null,
   nextChapter = null,
+  siblingSubchapters = [],
   initialOffset,
   theme,
   fontSize,
@@ -278,7 +281,9 @@ export const ReaderScreen: React.FC<ReaderScreenProps> = ({
                 padding: '0 4px',
               }}
             >
-              {chapter.title}
+              {chapter.parentChapterTitle
+                ? `${chapter.parentChapterTitle} · Подглава ${chapter.subchapterOrder ?? 1}`
+                : chapter.title}
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -364,7 +369,7 @@ export const ReaderScreen: React.FC<ReaderScreenProps> = ({
             lineHeight: 1.6,
           }}
         >
-          {/* Заголовок главы */}
+          {/* Заголовок главы / подглавы */}
           <div
             style={{
               marginBottom: '28px',
@@ -382,12 +387,28 @@ export const ReaderScreen: React.FC<ReaderScreenProps> = ({
                 marginBottom: '6px',
               }}
             >
-              Глава {chapter.id}
+              {chapter.parentChapterTitle
+                ? `Глава ${chapter.parentChapterNumber ?? chapter.chapterOrder} · Подглава ${chapter.subchapterOrder ?? 1} из ${chapter.subchapterCount ?? siblingSubchapters.length}`
+                : `Глава ${chapter.chapterOrder ?? chapter.id}`}
             </div>
+
+            {chapter.parentChapterTitle && (
+              <div
+                style={{
+                  fontSize: `${Math.round(fontSize * 1.15)}px`,
+                  fontWeight: 700,
+                  lineHeight: 1.3,
+                  marginBottom: '8px',
+                  color: BRAND_COLORS.amberAccent,
+                }}
+              >
+                {chapter.parentChapterTitle}
+              </div>
+            )}
 
             <h1
               style={{
-                fontSize: `${Math.round(fontSize * 1.25)}px`,
+                fontSize: `${Math.round(fontSize * (chapter.parentChapterTitle ? 1.1 : 1.25))}px`,
                 fontWeight: 700,
                 lineHeight: 1.3,
                 margin: 0,
@@ -438,7 +459,9 @@ export const ReaderScreen: React.FC<ReaderScreenProps> = ({
                 marginBottom: '20px',
               }}
             >
-              Конец главы
+              {chapter.parentChapterTitle
+                ? `Конец подглавы ${chapter.subchapterOrder ?? 1} из ${chapter.subchapterCount ?? siblingSubchapters.length}`
+                : 'Конец главы'}
             </div>
 
             {/* Кнопка прохождения теста, если есть проверочные вопросы */}
@@ -463,7 +486,11 @@ export const ReaderScreen: React.FC<ReaderScreenProps> = ({
                     gap: '10px',
                   }}
                 >
-                  <span>Пройти тест по главе ({chapter.quiz.length} вопр.)</span>
+                  <span>
+                    {chapter.parentChapterTitle
+                      ? `Пройти тест по подглаве (${chapter.quiz.length} вопр.)`
+                      : `Пройти тест по главе (${chapter.quiz.length} вопр.)`}
+                  </span>
                   <span>→</span>
                 </button>
               </div>
@@ -494,7 +521,10 @@ export const ReaderScreen: React.FC<ReaderScreenProps> = ({
                     fontWeight: 600,
                   }}
                 >
-                  ← Предыдущая глава: {previousChapter.title}
+                  ←{' '}
+                  {previousChapter.parentChapterTitle
+                    ? `Предыдущая подглава: ${previousChapter.title}`
+                    : `Предыдущая глава: ${previousChapter.title}`}
                 </button>
               )}
 
@@ -514,7 +544,10 @@ export const ReaderScreen: React.FC<ReaderScreenProps> = ({
                     boxShadow: '0 2px 8px rgba(21, 128, 61, 0.25)',
                   }}
                 >
-                  Следующая глава: {nextChapter.title} →
+                  {nextChapter.parentChapterTitle
+                    ? `Следующая подглава: ${nextChapter.title}`
+                    : `Следующая глава: ${nextChapter.title}`}{' '}
+                  →
                 </button>
               )}
 

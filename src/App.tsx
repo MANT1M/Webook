@@ -3,15 +3,28 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { EASY_GOOD_DEEDS_BOOK } from './data/easyGoodDeedsData';
+import { INTERACTIVE_BOOKS_MAP } from './data/catalogBooks';
 import { useReaderState } from './hooks/useReaderState';
-import { ChapterData } from './types/reader';
+import { BookData, ChapterData } from './types/reader';
 import { LibraryScreen, QuizOrigin } from './components/LibraryScreen';
 import { ReaderScreen } from './components/ReaderScreen';
 import { QuizScreen } from './components/QuizScreen';
 
 type ScreenType = 'library' | 'reader' | 'quiz';
+
+function findBookEntryByChapterId(
+  chapterId: number
+): { catalogId: string; book: BookData; chapter: ChapterData } | null {
+  for (const [catalogId, book] of Object.entries(INTERACTIVE_BOOKS_MAP)) {
+    const chapter = book.chapters.find((c) => c.id === chapterId);
+    if (chapter) {
+      return { catalogId, book, chapter };
+    }
+  }
+  return null;
+}
 
 function pushHistoryTag(tag: string) {
   try {
@@ -51,6 +64,17 @@ export default function App() {
 
   const searchPushedRef = useRef<boolean>(false);
 
+  const activeBook = useMemo(() => {
+    if (selectedBookId && INTERACTIVE_BOOKS_MAP[selectedBookId]) {
+      return INTERACTIVE_BOOKS_MAP[selectedBookId];
+    }
+    if (activeChapter) {
+      const found = findBookEntryByChapterId(activeChapter.id);
+      if (found) return found.book;
+    }
+    return EASY_GOOD_DEEDS_BOOK;
+  }, [selectedBookId, activeChapter]);
+
   // Обработка начального URL-хэша (#settings, #toc, #reader-xxx, #quiz-xxx)
   useEffect(() => {
     try {
@@ -66,18 +90,18 @@ export default function App() {
         setScreen('library');
       } else if (hash.startsWith('reader-')) {
         const chapterId = Number(hash.replace('reader-', ''));
-        const found = EASY_GOOD_DEEDS_BOOK.chapters.find((c) => c.id === chapterId);
+        const found = findBookEntryByChapterId(chapterId);
         if (found) {
-          setActiveChapter(found);
-          setSelectedBookId('prostye-blagodeyaniya');
+          setActiveChapter(found.chapter);
+          setSelectedBookId(found.catalogId);
           setScreen('reader');
         }
       } else if (hash.startsWith('quiz-')) {
         const chapterId = Number(hash.replace('quiz-', ''));
-        const found = EASY_GOOD_DEEDS_BOOK.chapters.find((c) => c.id === chapterId);
+        const found = findBookEntryByChapterId(chapterId);
         if (found) {
-          setActiveChapter(found);
-          setSelectedBookId('prostye-blagodeyaniya');
+          setActiveChapter(found.chapter);
+          setSelectedBookId(found.catalogId);
           setScreen('quiz');
         }
       }
@@ -109,10 +133,11 @@ export default function App() {
 
   // Открытие главы
   const handleOpenChapter = useCallback((chapter: ChapterData) => {
+    const found = findBookEntryByChapterId(chapter.id);
     setActiveChapter(chapter);
     setActiveFnId(null);
     setSettingsOpen(false);
-    setSelectedBookId('prostye-blagodeyaniya');
+    setSelectedBookId(found ? found.catalogId : 'prostye-blagodeyaniya');
     setScreen('reader');
     pushHistoryTag(`reader-${chapter.id}`);
   }, []);
@@ -144,11 +169,12 @@ export default function App() {
   // Запуск теста с сохранением quizOrigin ('library' | 'reader')
   const handleStartQuiz = useCallback(
     (chapter: ChapterData, origin: QuizOrigin) => {
+      const found = findBookEntryByChapterId(chapter.id);
       setActiveChapter(chapter);
       setQuizOrigin(origin);
       setActiveFnId(null);
       setSettingsOpen(false);
-      setSelectedBookId('prostye-blagodeyaniya');
+      setSelectedBookId(found ? found.catalogId : 'prostye-blagodeyaniya');
       setScreen('quiz');
       pushHistoryTag(`quiz-${chapter.id}`);
     },
@@ -224,7 +250,7 @@ export default function App() {
   if (screen === 'library' || !activeChapter) {
     return (
       <LibraryScreen
-        book={EASY_GOOD_DEEDS_BOOK}
+        book={activeBook}
         progress={progress}
         searchQuery={searchQuery}
         onSearchQueryChange={handleSearchQueryChange}
@@ -236,15 +262,21 @@ export default function App() {
     );
   }
 
-  const currentIndex = EASY_GOOD_DEEDS_BOOK.chapters.findIndex(
+  const currentIndex = activeBook.chapters.findIndex(
     (ch) => ch.id === activeChapter.id
   );
   const previousChapter =
-    currentIndex > 0 ? EASY_GOOD_DEEDS_BOOK.chapters[currentIndex - 1] : null;
+    currentIndex > 0 ? activeBook.chapters[currentIndex - 1] : null;
   const nextChapter =
-    currentIndex >= 0 && currentIndex + 1 < EASY_GOOD_DEEDS_BOOK.chapters.length
-      ? EASY_GOOD_DEEDS_BOOK.chapters[currentIndex + 1]
+    currentIndex >= 0 && currentIndex + 1 < activeBook.chapters.length
+      ? activeBook.chapters[currentIndex + 1]
       : null;
+
+  const siblingSubchapters = activeChapter.parentChapterTitle
+    ? activeBook.chapters.filter(
+        (ch) => ch.parentChapterTitle === activeChapter.parentChapterTitle
+      )
+    : [];
 
   const chapterProg = getChapterProgress(activeChapter.id);
 
@@ -254,6 +286,10 @@ export default function App() {
         chapter={activeChapter}
         previousChapter={previousChapter}
         nextChapter={nextChapter}
+        siblingSubchapters={siblingSubchapters}
+        onSelectSubchapter={(subCh) => {
+          handleOpenChapter(subCh);
+        }}
         initialOffset={chapterProg.offset}
         theme={theme}
         fontSize={fontSize}
@@ -287,7 +323,7 @@ export default function App() {
 
   return (
     <QuizScreen
-      book={EASY_GOOD_DEEDS_BOOK}
+      book={activeBook}
       chapter={activeChapter}
       nextChapter={nextChapter}
       arabicScale={arabicScale}

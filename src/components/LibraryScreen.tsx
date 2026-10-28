@@ -20,7 +20,11 @@ import { AmveraFilesModal } from './AmveraFilesModal';
 import { AuthModal } from './AuthModal';
 import { BookDetailsModal } from './BookDetailsModal';
 import { BookCoverRenderer } from './BookCoverRenderer';
-import { CATALOG_BOOKS, CatalogBook } from '../data/catalogBooks';
+import {
+  CATALOG_BOOKS,
+  CatalogBook,
+  INTERACTIVE_BOOKS_MAP,
+} from '../data/catalogBooks';
 import { useVisitCounter } from '../hooks/useVisitCounter';
 import { VisitorCounterBadge } from './VisitorCounterBadge';
 
@@ -55,6 +59,8 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
 
   const [chapterSearchQuery, setChapterSearchQuery] = useState<string>('');
   const [chapterFilter, setChapterFilter] = useState<'all' | 'unread' | 'passed'>('all');
+  const [selectedParentChapterTitle, setSelectedParentChapterTitle] =
+    useState<string | null>(null);
 
   const [amveraModalOpen, setAmveraModalOpen] = useState<boolean>(false);
   const [authModalOpen, setAuthModalOpen] = useState<boolean>(false);
@@ -88,6 +94,7 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
       : internalSelectedBookId;
 
   const handleSelectBook = (bookId: string | null) => {
+    setSelectedParentChapterTitle(null);
     if (onSelectBook) {
       onSelectBook(bookId);
     } else {
@@ -144,26 +151,42 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
     }
   };
 
+  // Активная выбранная книга (для экрана Оглавления)
+  const activeBook = useMemo(() => {
+    if (selectedBookId && INTERACTIVE_BOOKS_MAP[selectedBookId]) {
+      return INTERACTIVE_BOOKS_MAP[selectedBookId];
+    }
+    return book;
+  }, [selectedBookId, book]);
+
+  const selectedCatalogBook = useMemo(() => {
+    if (!selectedBookId) return null;
+    return CATALOG_BOOKS.find((b) => b.id === selectedBookId) || null;
+  }, [selectedBookId]);
+
   // Сортированные главы для стабильного последовательного порядка
   const sortedChapters = useMemo(() => {
-    return [...book.chapters].sort((a, b) => a.chapterOrder - b.chapterOrder);
-  }, [book.chapters]);
+    return [...activeBook.chapters].sort(
+      (a, b) => a.chapterOrder - b.chapterOrder
+    );
+  }, [activeBook.chapters]);
 
-  // Первая глава книги (строго «1. Предисловие переводчика», chapterOrder === 1)
+  // Первая глава выбранной книги (chapterOrder === 1)
   const firstChapter = useMemo(() => {
     return (
       sortedChapters.find((ch) => ch.chapterOrder === 1) ||
       sortedChapters[0] ||
-      book.chapters[0]
+      activeBook.chapters[0]
     );
-  }, [sortedChapters, book.chapters]);
+  }, [sortedChapters, activeBook.chapters]);
 
-  // Статистика чтения по книге "Простые благодеяния"
-  const totalChapters = book.chapters.length;
+  // Статистика чтения по выбранной книге
+  const totalChapters = activeBook.chapters.length;
   const passedCount = useMemo(() => {
-    return book.chapters.filter((ch) => progress[ch.id]?.status === 'PASSED')
-      .length;
-  }, [book.chapters, progress]);
+    return activeBook.chapters.filter(
+      (ch) => progress[ch.id]?.status === 'PASSED'
+    ).length;
+  }, [activeBook.chapters, progress]);
 
   const unreadCount = totalChapters - passedCount;
 
@@ -201,12 +224,87 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
       list = list.filter(
         (ch) =>
           ch.title.toLowerCase().includes(q) ||
+          (ch.parentChapterTitle &&
+            ch.parentChapterTitle.toLowerCase().includes(q)) ||
           String(ch.chapterOrder).includes(q)
       );
     }
 
     return list;
   }, [sortedChapters, chapterFilter, chapterSearchQuery, progress]);
+
+  // Группировка глав и подглав для отображения в Оглавлении
+  const tocItems = useMemo(() => {
+    type TocItem =
+      | { type: 'single'; chapter: ChapterData; chapterNumber: number }
+      | {
+          type: 'group';
+          parentTitle: string;
+          parentNumber: number;
+          subchapters: ChapterData[];
+        };
+
+    const items: TocItem[] = [];
+    const groupMap = new Map<
+      string,
+      { parentTitle: string; parentNumber: number; subchapters: ChapterData[] }
+    >();
+
+    for (const ch of filteredChapters) {
+      if (ch.parentChapterTitle) {
+        const key = ch.parentChapterTitle;
+        let existing = groupMap.get(key);
+        if (!existing) {
+          existing = {
+            parentTitle: ch.parentChapterTitle,
+            parentNumber: ch.parentChapterNumber ?? ch.chapterOrder,
+            subchapters: [],
+          };
+          groupMap.set(key, existing);
+          items.push({ type: 'group', ...existing });
+        }
+        existing.subchapters.push(ch);
+      } else {
+        const chapterNumber =
+          ch.chapterOrder ??
+          activeBook.chapters.findIndex((c) => c.id === ch.id) + 1;
+        items.push({ type: 'single', chapter: ch, chapterNumber });
+      }
+    }
+
+    return items;
+  }, [filteredChapters, activeBook.chapters]);
+
+  // Данные выбранной главы с подглавами (открывается при клике на главу)
+  const selectedGroupSubchapters = useMemo(() => {
+    if (!selectedParentChapterTitle) return null;
+    const subs = sortedChapters.filter(
+      (ch) => ch.parentChapterTitle === selectedParentChapterTitle
+    );
+    if (subs.length === 0) return null;
+    return {
+      parentTitle: selectedParentChapterTitle,
+      parentNumber: subs[0].parentChapterNumber ?? subs[0].chapterOrder,
+      subchapters: subs,
+    };
+  }, [sortedChapters, selectedParentChapterTitle]);
+
+  // Количество верхнеуровневых глав (с учетом объединения подглав в одну главу)
+  const topLevelChaptersCount = useMemo(() => {
+    const parentTitles = new Set<string>();
+    let count = 0;
+    for (const ch of activeBook.chapters) {
+      if (ch.parentChapterTitle) {
+        if (!parentTitles.has(ch.parentChapterTitle)) {
+          parentTitles.add(ch.parentChapterTitle);
+          count += 1;
+        }
+      } else {
+        count += 1;
+      }
+    }
+    return count;
+  }, [activeBook.chapters]);
 
   // Нажатие на книгу в каталоге: переход в ОГЛАВЛЕНИЕ книги
   const handleActionClick = (catBook: CatalogBook) => {
@@ -220,9 +318,9 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
   // Определение главы для продолжения чтения:
   // Если есть прочитанные главы (passedCount > 0), берем следующую непрочитанную по порядку.
   // Иначе, если у первой главы есть смещение, возобновляем первую главу.
-  // Во всех остальных случаях — строго первая глава книги («1. Предисловие переводчика»).
+  // Во всех остальных случаях — строго первая глава книги.
   const resumeChapter = useMemo(() => {
-    if (!firstChapter) return book.chapters[0];
+    if (!firstChapter) return activeBook.chapters[0];
 
     if (passedCount > 0) {
       const nextUnread = sortedChapters.find(
@@ -236,12 +334,12 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
     }
 
     return firstChapter;
-  }, [firstChapter, passedCount, progress, sortedChapters, book.chapters]);
+  }, [firstChapter, passedCount, progress, sortedChapters, activeBook.chapters]);
 
   // ==========================================
   // 1. ЭКРАН ОГЛАВЛЕНИЯ КНИГИ ("TOC VIEW")
   // ==========================================
-  if (selectedBookId === 'prostye-blagodeyaniya') {
+  if (selectedBookId && INTERACTIVE_BOOKS_MAP[selectedBookId]) {
 
     return (
       <div className="min-h-screen bg-[#faf9f6] text-[#1c1b1f] flex flex-col">
@@ -315,16 +413,36 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
               </button>
               <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
               <span className="text-slate-700 font-medium truncate">
-                «Простые благодеяния»
+                «{selectedCatalogBook?.title ?? activeBook.title}»
               </span>
               <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-              <span className="font-semibold text-emerald-900">
-                Оглавление
-              </span>
+              {selectedGroupSubchapters ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedParentChapterTitle(null)}
+                    className="hover:text-emerald-800 transition cursor-pointer font-medium text-slate-700"
+                  >
+                    Оглавление
+                  </button>
+                  <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                  <span className="font-semibold text-emerald-900 truncate">
+                    Глава {selectedGroupSubchapters.parentNumber}: {selectedGroupSubchapters.parentTitle}
+                  </span>
+                </>
+              ) : (
+                <span className="font-semibold text-emerald-900">
+                  Оглавление
+                </span>
+              )}
             </div>
 
             <div className="text-[11px] font-semibold text-emerald-900 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full shrink-0">
-              {totalChapters} глав
+              {topLevelChaptersCount === 1
+                ? '1 глава'
+                : topLevelChaptersCount >= 2 && topLevelChaptersCount <= 4
+                ? `${topLevelChaptersCount} главы`
+                : `${topLevelChaptersCount} глав`}
             </div>
           </div>
         </div>
@@ -337,10 +455,13 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
               {/* Обложка книги с золотистой рамкой */}
               <div className="w-36 sm:w-44 md:w-48 shrink-0 mx-auto sm:mx-0 shadow-lg rounded-xl overflow-hidden border-2 border-amber-300/40">
                 <BookCoverRenderer
-                  coverType="image"
-                  title="Простые благодеяния"
-                  author="Муфтий Мухаммад Таки Усмани"
-                  coverImageUrl="/assets/aistudio/____________8cd66871.png"
+                  coverType={selectedCatalogBook?.coverType ?? 'image'}
+                  title={selectedCatalogBook?.title ?? activeBook.title}
+                  author={selectedCatalogBook?.author ?? activeBook.author}
+                  coverImageUrl={
+                    selectedCatalogBook?.coverImageUrl ??
+                    '/assets/aistudio/____________8cd66871.png'
+                  }
                 />
               </div>
 
@@ -349,26 +470,32 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
                 <div>
                   <div className="flex flex-wrap items-center gap-2 mb-2.5">
                     <span className="text-[11px] font-semibold uppercase tracking-wider bg-emerald-100 text-[#06392c] px-2.5 py-0.5 rounded-md">
-                      Практическое руководство
+                      {selectedCatalogBook?.category ??
+                        activeBook.genre ??
+                        'Издание'}
                     </span>
-                    <span className="text-[11px] text-slate-500 flex items-center gap-1">
-                      <Calendar className="w-3 h-3 text-slate-400" />
-                      1440 г.х.
-                    </span>
-                    <span className="text-[11px] text-slate-500 flex items-center gap-1">
-                      <Layers className="w-3 h-3 text-slate-400" />
-                      184 страницы
-                    </span>
+                    {selectedCatalogBook?.year && (
+                      <span className="text-[11px] text-slate-500 flex items-center gap-1">
+                        <Calendar className="w-3 h-3 text-slate-400" />
+                        {selectedCatalogBook.year}
+                      </span>
+                    )}
+                    {selectedCatalogBook?.pages && (
+                      <span className="text-[11px] text-slate-500 flex items-center gap-1">
+                        <Layers className="w-3 h-3 text-slate-400" />
+                        {selectedCatalogBook.pages} страниц
+                      </span>
+                    )}
                   </div>
 
                   <h2 className="font-serif text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-900 tracking-tight mb-1.5">
-                    Простые благодеяния
+                    {selectedCatalogBook?.title ?? activeBook.title}
                   </h2>
                   <p className="text-sm sm:text-base font-medium text-emerald-900 mb-3">
-                    Муфтий Мухаммад Таки Усмани (пер. Давуд Радкевич)
+                    {activeBook.author}
                   </p>
                   <p className="text-xs sm:text-sm text-slate-600 leading-relaxed max-w-3xl mb-5">
-                    Практическое руководство выдающегося исламского ученого по совершению несложных, но высоконаграждаемых повседневных благих дел из Корана и достоверной Сунны. Полный текст книги разбит на {totalChapters} глав с интерактивными комментариями и проверочными вопросами.
+                    {activeBook.description}
                   </p>
                 </div>
 
@@ -378,12 +505,12 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-semibold text-slate-800">Прогресс чтения:</span>
                       <span className="font-bold text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-lg border border-emerald-200">
-                        {passedCount} из {totalChapters} глав ({ratio}%)
+                        {passedCount} из {totalChapters} разд. ({ratio}%)
                       </span>
                     </div>
                     <span className="text-slate-500 text-[11px]">
                       {unreadCount > 0
-                        ? `Осталось прочитать: ${unreadCount} глав`
+                        ? `Осталось прочитать: ${unreadCount}`
                         : 'Поздравляем! Все главы прочитаны 🎉'}
                     </span>
                   </div>
@@ -428,7 +555,7 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
                         type="button"
                         onClick={() => onOpenChapter(firstChapter)}
                         className="bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-medium text-xs sm:text-sm px-3.5 py-2.5 rounded-xl transition cursor-pointer flex items-center gap-1.5"
-                        title="Открыть 1-ю главу: Предисловие переводчика"
+                        title={`Открыть 1-ю главу: ${firstChapter?.title}`}
                       >
                         <ArrowLeft className="w-3.5 h-3.5 text-slate-400" />
                         <span>С первой главы</span>
@@ -437,18 +564,18 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
 
                     <button
                       type="button"
-                      onClick={() => handleToggleBookmark('prostye-blagodeyaniya')}
+                      onClick={() => handleToggleBookmark(selectedBookId)}
                       className="border border-slate-200 hover:bg-slate-50 text-slate-700 font-medium text-xs sm:text-sm px-4 py-2.5 rounded-xl transition cursor-pointer flex items-center gap-2"
                     >
                       <Bookmark
                         className={`w-4 h-4 ${
-                          bookmarkedIds.has('prostye-blagodeyaniya')
+                          bookmarkedIds.has(selectedBookId)
                             ? 'fill-[#06392c] text-[#06392c]'
                             : 'text-slate-400'
                         }`}
                       />
                       <span>
-                        {bookmarkedIds.has('prostye-blagodeyaniya')
+                        {bookmarkedIds.has(selectedBookId)
                           ? 'В закладках'
                           : 'В закладки'}
                       </span>
@@ -459,97 +586,342 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
             </div>
           </div>
 
-          {/* СЕКЦИЯ: ОГЛАВЛЕНИЕ КНИГИ */}
+          {/* СЕКЦИЯ: ОГЛАВЛЕНИЕ КНИГИ ИЛИ СПИСОК ПОДГЛАВ ВЫБРАННОЙ ГЛАВЫ */}
           <section className="mb-12">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+            {selectedGroupSubchapters ? (
+              /* ЭКРАН ПОДГЛАВ ВЫБРАННОЙ ГЛАВЫ */
               <div>
-                <h3 className="font-serif text-xl sm:text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2.5">
-                  <span>Оглавление книги</span>
-                  <span className="text-xs font-sans font-semibold text-slate-600 bg-slate-200/70 px-2.5 py-0.5 rounded-full">
-                    {filteredChapters.length} из {totalChapters}
-                  </span>
-                </h3>
-                <p className="text-xs sm:text-sm text-slate-500 mt-1">
-                  Выберите главу для чтения или прохождения проверочного теста
-                </p>
-              </div>
-
-              {/* Поиск и фильтры по главам */}
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
-                {/* Поле поиска по названию главы */}
-                <div className="relative">
-                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                  <input
-                    type="text"
-                    value={chapterSearchQuery}
-                    onChange={(e) => setChapterSearchQuery(e.target.value)}
-                    placeholder="Поиск по главам..."
-                    className="w-full sm:w-60 bg-white border border-slate-200 rounded-xl pl-9 pr-8 py-2 text-xs sm:text-sm outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 shadow-2xs"
-                  />
-                  {chapterSearchQuery && (
-                    <button
-                      type="button"
-                      onClick={() => setChapterSearchQuery('')}
-                      className="w-5 h-5 rounded-full hover:bg-slate-100 absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center justify-center text-slate-400 hover:text-slate-600 cursor-pointer"
-                      title="Очистить"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  )}
-                </div>
-
-                {/* Переключатели фильтра: Все / Непрочитанные / Пройденные */}
-                <div className="flex items-center gap-1 bg-slate-200/60 p-1 rounded-xl text-xs">
+                <div className="mb-5">
                   <button
                     type="button"
-                    onClick={() => setChapterFilter('all')}
-                    className={`px-3 py-1.5 rounded-lg font-medium transition cursor-pointer ${
-                      chapterFilter === 'all'
-                        ? 'bg-white text-slate-900 shadow-xs font-semibold'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
+                    onClick={() => setSelectedParentChapterTitle(null)}
+                    className="inline-flex items-center gap-2 bg-white hover:bg-emerald-50 text-[#06392c] border border-slate-200 hover:border-emerald-300 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition cursor-pointer shadow-2xs"
                   >
-                    Все ({totalChapters})
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setChapterFilter('unread')}
-                    className={`px-3 py-1.5 rounded-lg font-medium transition cursor-pointer ${
-                      chapterFilter === 'unread'
-                        ? 'bg-white text-slate-900 shadow-xs font-semibold'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    Осталось ({unreadCount})
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setChapterFilter('passed')}
-                    className={`px-3 py-1.5 rounded-lg font-medium transition cursor-pointer ${
-                      chapterFilter === 'passed'
-                        ? 'bg-white text-slate-900 shadow-xs font-semibold'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    Пройдено ({passedCount})
+                    <ArrowLeft className="w-4 h-4 text-emerald-800" />
+                    <span>Назад к списку глав</span>
                   </button>
                 </div>
-              </div>
-            </div>
 
-            {/* СПИСОК ГЛАВ (GRID 1-2 КОЛОНКИ) */}
-            {filteredChapters.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
-                {filteredChapters.map((ch, idx) => {
+                <div className="bg-white rounded-2xl sm:rounded-3xl border border-emerald-900/20 shadow-xs overflow-hidden">
+                  {/* Заголовок выбранной главы */}
+                  <div className="bg-linear-to-r from-[#06392c] to-[#0a4f3c] text-white px-5 py-4 sm:px-6 sm:py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex items-start sm:items-center gap-3.5 min-w-0">
+                      <div className="w-10 h-10 rounded-xl bg-amber-300/20 border border-amber-300/40 text-[#fef3c7] flex items-center justify-center font-mono font-bold text-sm shrink-0">
+                        {String(selectedGroupSubchapters.parentNumber).padStart(2, '0')}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2 mb-1">
+                          <span className="text-[10px] font-bold uppercase tracking-wider bg-amber-300/20 text-amber-200 px-2 py-0.5 rounded-md border border-amber-300/30">
+                            Глава {selectedGroupSubchapters.parentNumber} ·{' '}
+                            {selectedGroupSubchapters.subchapters.length}{' '}
+                            {selectedGroupSubchapters.subchapters.length === 1
+                              ? 'подглава'
+                              : selectedGroupSubchapters.subchapters.length >= 2 &&
+                                selectedGroupSubchapters.subchapters.length <= 4
+                              ? 'подглавы'
+                              : 'подглав'}
+                          </span>
+                          <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-white/10 text-emerald-100">
+                            Прочитано:{' '}
+                            {
+                              selectedGroupSubchapters.subchapters.filter(
+                                (sub) => progress[sub.id]?.status === 'PASSED'
+                              ).length
+                            }{' '}
+                            из {selectedGroupSubchapters.subchapters.length}
+                          </span>
+                        </div>
+                        <h4 className="font-serif font-bold text-base sm:text-lg text-[#fef3c7] leading-snug">
+                          {selectedGroupSubchapters.parentTitle}
+                        </h4>
+                      </div>
+                    </div>
+
+                    {selectedGroupSubchapters.subchapters[0] && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onOpenChapter(selectedGroupSubchapters.subchapters[0])
+                        }
+                        className="bg-[#fef3c7] hover:bg-amber-200 text-[#06392c] px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 self-start sm:self-auto shrink-0 shadow-xs"
+                      >
+                        <BookOpen className="w-3.5 h-3.5 text-[#06392c]" />
+                        <span>Читать с 1-й подглавы</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Список подглав */}
+                  <div className="p-4 sm:p-6 bg-[#faf9f6]/60 grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {selectedGroupSubchapters.subchapters.map((sub, subIdx) => {
+                      const subProg = progress[sub.id];
+                      const isPassed = subProg?.status === 'PASSED';
+                      const inProgress =
+                        (subProg?.offset ?? 0) > 0 && !isPassed;
+                      const bestScore = subProg?.bestScore;
+                      const subNum = sub.subchapterOrder ?? subIdx + 1;
+
+                      return (
+                        <article
+                          key={sub.id}
+                          onClick={() => onOpenChapter(sub)}
+                          className={`p-4 sm:p-5 rounded-2xl border transition-all duration-200 cursor-pointer flex flex-col justify-between group ${
+                            isPassed
+                              ? 'bg-white border-emerald-200/90 hover:border-emerald-500 hover:shadow-sm'
+                              : inProgress
+                              ? 'bg-white border-amber-200/90 hover:border-amber-400 hover:shadow-sm'
+                              : 'bg-white border-slate-200/90 hover:border-emerald-600/60 hover:shadow-sm'
+                          }`}
+                        >
+                          <div>
+                            <div className="flex items-start gap-3 mb-2.5">
+                              <div
+                                className={`px-2.5 h-9 rounded-xl flex items-center justify-center font-mono font-bold text-xs shrink-0 transition-colors ${
+                                  isPassed
+                                    ? 'bg-emerald-100 text-emerald-800'
+                                    : inProgress
+                                    ? 'bg-amber-100 text-amber-800'
+                                    : 'bg-emerald-950/10 text-[#06392c] group-hover:bg-[#06392c] group-hover:text-[#fef3c7]'
+                                }`}
+                              >
+                                {selectedGroupSubchapters.parentNumber}.{subNum}
+                              </div>
+
+                              <div className="flex-1 min-w-0">
+                                <div className="text-[10px] font-bold uppercase tracking-wider text-amber-800 mb-0.5">
+                                  Подглава {subNum} из{' '}
+                                  {sub.subchapterCount ??
+                                    selectedGroupSubchapters.subchapters.length}
+                                </div>
+                                <h5 className="font-serif font-bold text-sm sm:text-base text-slate-900 group-hover:text-emerald-900 leading-snug transition-colors">
+                                  {sub.title}
+                                </h5>
+                              </div>
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-1.5 mt-2 mb-3 text-[11px]">
+                              {isPassed ? (
+                                <span className="font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md flex items-center gap-1">
+                                  <Check className="w-3 h-3 text-emerald-600" />
+                                  Прочитано
+                                </span>
+                              ) : inProgress ? (
+                                <span className="font-semibold text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md flex items-center gap-1">
+                                  <Clock className="w-3 h-3 text-amber-600" />
+                                  В процессе
+                                </span>
+                              ) : (
+                                <span className="text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
+                                  Не прочитано
+                                </span>
+                              )}
+
+                              {bestScore !== undefined && bestScore > 0 && (
+                                <span
+                                  className={`px-2 py-0.5 rounded-md font-semibold flex items-center gap-1 ${
+                                    bestScore >= 80
+                                      ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                                      : 'bg-amber-50 text-amber-800 border border-amber-200'
+                                  }`}
+                                >
+                                  <Sparkles className="w-3 h-3 text-amber-600" />
+                                  Тест: {bestScore}%
+                                </span>
+                              )}
+
+                              {sub.footnotes && sub.footnotes.length > 0 && (
+                                <span className="text-slate-400">
+                                  · {sub.footnotes.length} сносок
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          <div
+                            className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100 mt-1"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {sub.quiz && sub.quiz.length > 0 && (
+                              <button
+                                type="button"
+                                onClick={() => onStartQuiz(sub, 'library')}
+                                className="bg-amber-50 hover:bg-amber-100/80 text-amber-900 border border-amber-200/80 px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer flex items-center gap-1.5"
+                              >
+                                <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                                <span>Пройти тест</span>
+                              </button>
+                            )}
+
+                            <button
+                              type="button"
+                              onClick={() => onOpenChapter(sub)}
+                              className="bg-[#06392c] hover:opacity-95 text-[#fef3c7] px-3.5 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer flex items-center gap-1.5"
+                            >
+                              <BookOpen className="w-3.5 h-3.5 text-amber-300" />
+                              <span>Читать подглаву</span>
+                            </button>
+                          </div>
+                        </article>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                  <div>
+                    <h3 className="font-serif text-xl sm:text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2.5">
+                      <span>Оглавление книги</span>
+                      <span className="text-xs font-sans font-semibold text-slate-600 bg-slate-200/70 px-2.5 py-0.5 rounded-full">
+                        {topLevelChaptersCount}{' '}
+                        {topLevelChaptersCount === 1
+                          ? 'глава'
+                          : topLevelChaptersCount >= 2 && topLevelChaptersCount <= 4
+                          ? 'главы'
+                          : 'глав'}
+                      </span>
+                    </h3>
+                    <p className="text-xs sm:text-sm text-slate-500 mt-1">
+                      Выберите главу для чтения или перехода к её подглавам
+                    </p>
+                  </div>
+
+                  {/* Поиск и фильтры по главам */}
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+                    {/* Поле поиска по названию главы */}
+                    <div className="relative">
+                      <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      <input
+                        type="text"
+                        value={chapterSearchQuery}
+                        onChange={(e) => setChapterSearchQuery(e.target.value)}
+                        placeholder="Поиск по главам..."
+                        className="w-full sm:w-60 bg-white border border-slate-200 rounded-xl pl-9 pr-8 py-2 text-xs sm:text-sm outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 shadow-2xs"
+                      />
+                      {chapterSearchQuery && (
+                        <button
+                          type="button"
+                          onClick={() => setChapterSearchQuery('')}
+                          className="w-5 h-5 rounded-full hover:bg-slate-100 absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center justify-center text-slate-400 hover:text-slate-600 cursor-pointer"
+                          title="Очистить"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Переключатели фильтра: Все / Непрочитанные / Пройденные */}
+                    <div className="flex items-center gap-1 bg-slate-200/60 p-1 rounded-xl text-xs">
+                      <button
+                        type="button"
+                        onClick={() => setChapterFilter('all')}
+                        className={`px-3 py-1.5 rounded-lg font-medium transition cursor-pointer ${
+                          chapterFilter === 'all'
+                            ? 'bg-white text-slate-900 shadow-xs font-semibold'
+                            : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        Все ({totalChapters})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setChapterFilter('unread')}
+                        className={`px-3 py-1.5 rounded-lg font-medium transition cursor-pointer ${
+                          chapterFilter === 'unread'
+                            ? 'bg-white text-slate-900 shadow-xs font-semibold'
+                            : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        Осталось ({unreadCount})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setChapterFilter('passed')}
+                        className={`px-3 py-1.5 rounded-lg font-medium transition cursor-pointer ${
+                          chapterFilter === 'passed'
+                            ? 'bg-white text-slate-900 shadow-xs font-semibold'
+                            : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        Пройдено ({passedCount})
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* СПИСОК ГЛАВ (GRID 1-2 КОЛОНКИ) */}
+                {tocItems.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+                    {tocItems.map((item) => {
+                      if (item.type === 'group') {
+                        const allParentSubs = sortedChapters.filter(
+                          (c) => c.parentChapterTitle === item.parentTitle
+                        );
+                        const totalSubCount =
+                          allParentSubs.length || item.subchapters.length;
+                        const subCountLabel =
+                          totalSubCount === 1
+                            ? '1 подглава'
+                            : totalSubCount >= 2 && totalSubCount <= 4
+                            ? `${totalSubCount} подглавы`
+                            : `${totalSubCount} подглав`;
+
+                        return (
+                          <article
+                            key={`group-${item.parentTitle}`}
+                            onClick={() =>
+                              setSelectedParentChapterTitle(item.parentTitle)
+                            }
+                            className="p-4 sm:p-5 rounded-2xl border bg-white border-slate-200/80 hover:border-emerald-600/60 hover:shadow-sm transition-all duration-200 cursor-pointer flex flex-col justify-between group"
+                          >
+                            {/* Верхняя часть карточки главы с подглавами */}
+                            <div className="flex items-start gap-3.5 mb-3">
+                              <div className="w-9 h-9 rounded-xl flex items-center justify-center font-mono font-bold text-xs shrink-0 transition-colors bg-slate-100 text-slate-600 group-hover:bg-[#06392c] group-hover:text-[#fef3c7]">
+                                {String(item.parentNumber).padStart(2, '0')}
+                              </div>
+
+                              <div className="flex-1 min-w-0">
+                                <h4 className="font-serif font-bold text-sm sm:text-base text-slate-900 group-hover:text-emerald-900 leading-snug transition-colors line-clamp-2">
+                                  {item.parentTitle}
+                                </h4>
+
+                                <div className="flex flex-wrap items-center gap-2 mt-2 text-[11px]">
+                                  <span className="font-semibold text-emerald-900 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-md flex items-center gap-1.5">
+                                    <Layers className="w-3.5 h-3.5 text-emerald-700" />
+                                    <span>{subCountLabel}</span>
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Нижняя часть с кнопкой перехода к подглавам */}
+                            <div
+                              className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100 mt-1"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setSelectedParentChapterTitle(item.parentTitle)
+                                }
+                                className="bg-[#06392c] hover:opacity-95 text-[#fef3c7] px-4 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer flex items-center gap-1.5"
+                              >
+                                <Layers className="w-3.5 h-3.5 text-amber-300" />
+                                <span>К подглавам ({totalSubCount})</span>
+                                <ChevronRight className="w-3.5 h-3.5 text-amber-300" />
+                              </button>
+                            </div>
+                          </article>
+                        );
+                      }
+
+                  const ch = item.chapter;
                   const chProg = progress[ch.id];
                   const isPassed = chProg?.status === 'PASSED';
                   const inProgress = (chProg?.offset ?? 0) > 0 && !isPassed;
                   const bestScore = chProg?.bestScore;
-
-                  // Настоящий номер главы в книге
-                  const chapterNumber =
-                    ch.chapterOrder ??
-                    book.chapters.findIndex((c) => c.id === ch.id) + 1;
+                  const chapterNumber = item.chapterNumber;
 
                   return (
                     <article
@@ -655,24 +1027,26 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
                     </article>
                   );
                 })}
-              </div>
-            ) : (
-              <div className="bg-white border border-slate-200 rounded-2xl p-10 text-center max-w-lg mx-auto">
-                <BookOpen className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                <p className="text-slate-600 text-sm">
-                  Главы по запросу «<strong>{chapterSearchQuery}</strong>» не найдены.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setChapterSearchQuery('');
-                    setChapterFilter('all');
-                  }}
-                  className="mt-3 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition cursor-pointer"
-                >
-                  Сбросить фильтры
-                </button>
-              </div>
+                  </div>
+                ) : (
+                  <div className="bg-white border border-slate-200 rounded-2xl p-10 text-center max-w-lg mx-auto">
+                    <BookOpen className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                    <p className="text-slate-600 text-sm">
+                      Главы по запросу «<strong>{chapterSearchQuery}</strong>» не найдены.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setChapterSearchQuery('');
+                        setChapterFilter('all');
+                      }}
+                      className="mt-3 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition cursor-pointer"
+                    >
+                      Сбросить фильтры
+                    </button>
+                  </div>
+                )}
+              </>
             )}
           </section>
         </main>
@@ -855,9 +1229,22 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,280px))] gap-4 sm:gap-6">
               {filteredBooks.map((catBook) => {
                 const isBookmarked = bookmarkedIds.has(catBook.id);
+                const interactiveBookData = INTERACTIVE_BOOKS_MAP[catBook.id];
+                const bookPassedCount = interactiveBookData
+                  ? interactiveBookData.chapters.filter(
+                      (ch) => progress[ch.id]?.status === 'PASSED'
+                    ).length
+                  : 0;
+                const bookRatio =
+                  interactiveBookData && interactiveBookData.chapters.length > 0
+                    ? Math.round(
+                        (bookPassedCount / interactiveBookData.chapters.length) *
+                          100
+                      )
+                    : 0;
                 const currentProgress = catBook.isInteractiveReader
-                  ? ratio > 0
-                    ? ratio
+                  ? bookRatio > 0
+                    ? bookRatio
                     : undefined
                   : catBook.progressPercent;
 
