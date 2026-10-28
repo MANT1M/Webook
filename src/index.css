@@ -20,20 +20,16 @@
   }
 }
 
-/* Native WebKit scrollbar styling in #06372C */
-::-webkit-scrollbar {
-  width: 4px;
-  height: 4px;
+/* Hide native scrollbars on the right while keeping scroll functionality */
+* {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
-::-webkit-scrollbar-track {
-  background: rgba(214, 208, 196, 0.05);
-  border-radius: 9999px;
-}
-
-::-webkit-scrollbar-thumb {
-  background-color: #06372C;
-  border-radius: 9999px;
+*::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 /* Range input styling in #06372C */

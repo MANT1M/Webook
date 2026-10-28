@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { ChapterData, ThemeMode } from '../types/reader';
 import { BRAND_COLORS, THEMES } from '../constants/theme';
 import { formatReaderPageContent } from '../utils/arabicFormatter';
-import { CustomScrollbar } from './CustomScrollbar';
 import { FootnotePopup } from './FootnotePopup';
 import { SettingsSheet } from './SettingsSheet';
 import { QuizOrigin } from './LibraryScreen';
@@ -570,12 +569,6 @@ export const ReaderScreen: React.FC<ReaderScreenProps> = ({
             </div>
           </div>
         </div>
-
-        {/* Плавный вертикальный скроллбар, привязанный к контейнеру чтения */}
-        <CustomScrollbar
-          mode="reader"
-          containerRef={scrollContainerRef}
-        />
       </div>
 
       {/* Попап сноски в виде фиксированного модального окна снизу экрана */}

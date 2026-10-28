@@ -28,7 +28,7 @@ function findBookEntryByChapterId(
 
 function pushHistoryTag(tag: string) {
   try {
-    window.history.pushState({ tag }, '', '#' + tag);
+    window.history.pushState({ tag }, '', window.location.pathname + window.location.search);
   } catch {
     // Ignore history API restrictions in sandboxed environments
   }
@@ -50,13 +50,7 @@ export default function App() {
 
   const [screen, setScreen] = useState<ScreenType>('library');
   const [selectedBookId, setSelectedBookId] = useState<string | null>(null);
-  const [activeChapter, setActiveChapter] = useState<ChapterData | null>(() => {
-    return (
-      EASY_GOOD_DEEDS_BOOK.chapters.find((c) => c.chapterOrder === 1) ||
-      EASY_GOOD_DEEDS_BOOK.chapters[0] ||
-      null
-    );
-  });
+  const [activeChapter, setActiveChapter] = useState<ChapterData | null>(null);
   const [quizOrigin, setQuizOrigin] = useState<QuizOrigin>('library');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [activeFnId, setActiveFnId] = useState<number | null>(null);
@@ -75,38 +69,20 @@ export default function App() {
     return EASY_GOOD_DEEDS_BOOK;
   }, [selectedBookId, activeChapter]);
 
-  // Обработка начального URL-хэша (#settings, #toc, #reader-xxx, #quiz-xxx)
+  // При загрузке и обновлении сайта всегда открываем главный каталог книг и очищаем остаточный URL-хэш
   useEffect(() => {
     try {
-      const hash = window.location.hash.replace(/^#/, '');
-      if (!hash) return;
-
-      if (hash === 'settings') {
-        setSelectedBookId('prostye-blagodeyaniya');
-        setScreen('reader');
-        setSettingsOpen(true);
-      } else if (hash === 'toc' || hash === 'contents') {
-        setSelectedBookId('prostye-blagodeyaniya');
-        setScreen('library');
-      } else if (hash.startsWith('reader-')) {
-        const chapterId = Number(hash.replace('reader-', ''));
-        const found = findBookEntryByChapterId(chapterId);
-        if (found) {
-          setActiveChapter(found.chapter);
-          setSelectedBookId(found.catalogId);
-          setScreen('reader');
-        }
-      } else if (hash.startsWith('quiz-')) {
-        const chapterId = Number(hash.replace('quiz-', ''));
-        const found = findBookEntryByChapterId(chapterId);
-        if (found) {
-          setActiveChapter(found.chapter);
-          setSelectedBookId(found.catalogId);
-          setScreen('quiz');
-        }
+      setScreen('library');
+      setSelectedBookId(null);
+      if (window.location.hash) {
+        window.history.replaceState(
+          null,
+          '',
+          window.location.pathname + window.location.search
+        );
       }
     } catch {
-      // Ignore URL parsing errors
+      // Ignore URL / history errors in sandboxed environments
     }
   }, []);
 

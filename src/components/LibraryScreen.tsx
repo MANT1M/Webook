@@ -15,7 +15,6 @@ import {
   Calendar,
 } from 'lucide-react';
 import { BookData, ChapterData, ChapterProgress } from '../types/reader';
-import { CustomScrollbar } from './CustomScrollbar';
 import { AmveraFilesModal } from './AmveraFilesModal';
 import { AuthModal } from './AuthModal';
 import { BookDetailsModal } from './BookDetailsModal';
@@ -343,7 +342,6 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
 
     return (
       <div className="min-h-screen bg-[#faf9f6] text-[#1c1b1f] flex flex-col">
-        <CustomScrollbar mode="library" />
 
         {/* ШАПКА ОГЛАВЛЕНИЯ */}
         <header className="sticky top-0 z-30 bg-[#06392c] text-white shadow-md border-b border-[#04271e]">
@@ -1091,7 +1089,6 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
   // ==========================================
   return (
     <div className="min-h-screen bg-[#faf9f6] text-[#1c1b1f] flex flex-col">
-      <CustomScrollbar mode="library" />
 
       {/* ШАПКА САЙТА (HEADER) — темно-зеленый #06392c, логотип слева, кнопки справа */}
       <header className="sticky top-0 z-30 bg-[#06392c] text-white shadow-md border-b border-[#04271e]">
