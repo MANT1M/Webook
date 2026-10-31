@@ -26,6 +26,7 @@ import {
 } from '../data/catalogBooks';
 import { useVisitCounter } from '../hooks/useVisitCounter';
 import { VisitorCounterBadge } from './VisitorCounterBadge';
+import { PortalHeader, PortalSection } from './PortalHeader';
 
 export type QuizOrigin = 'library' | 'reader';
 
@@ -38,6 +39,7 @@ export interface LibraryScreenProps {
   onStartQuiz: (chapter: ChapterData, origin: QuizOrigin) => void;
   selectedBookId?: string | null;
   onSelectBook?: (bookId: string | null) => void;
+  onSelectPortalSection?: (section: PortalSection) => void;
 }
 
 export const LibraryScreen: React.FC<LibraryScreenProps> = ({
@@ -49,6 +51,7 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
   onStartQuiz,
   selectedBookId: controlledSelectedBookId,
   onSelectBook,
+  onSelectPortalSection,
 }) => {
   const [internalSearchQuery, setInternalSearchQuery] = useState<string>('');
   const [internalSelectedBookId, setInternalSelectedBookId] =
@@ -403,6 +406,18 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
         <div className="bg-white border-b border-slate-200/80 px-4 sm:px-6 lg:px-8 py-2.5 text-xs text-slate-500">
           <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
             <div className="flex items-center gap-2 overflow-x-auto whitespace-nowrap min-w-0">
+              {onSelectPortalSection && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => onSelectPortalSection('home')}
+                    className="hover:text-emerald-800 transition cursor-pointer"
+                  >
+                    Главная
+                  </button>
+                  <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                </>
+              )}
               <button
                 onClick={() => handleSelectBook(null)}
                 className="hover:text-emerald-800 transition cursor-pointer"
@@ -1090,50 +1105,57 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
   return (
     <div className="min-h-screen bg-[#faf9f6] text-[#1c1b1f] flex flex-col">
 
-      {/* ШАПКА САЙТА (HEADER) — темно-зеленый #06392c, логотип слева, кнопки справа */}
-      <header className="sticky top-0 z-30 bg-[#06392c] text-white shadow-md border-b border-[#04271e]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex items-center justify-between gap-4">
-          {/* Логотип: открытая книга и название «Библиотека благодеяний» */}
-          <div
-            onClick={() => {
-              setSearchQuery('');
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }}
-            className="flex items-center gap-2.5 cursor-pointer group select-none min-w-0"
-          >
-            <BookOpen className="w-5 h-5 text-[#fef3c7] transition-transform group-hover:scale-105 shrink-0" />
-            <h1 className="font-serif font-bold text-base sm:text-lg lg:text-xl text-[#fef3c7] tracking-tight truncate">
-              Библиотека благодеяний
-            </h1>
-          </div>
-
-          {/* Правая часть: счетчик визитов, кнопка «Войти / Регистрация» и кнопка «Файлы» */}
-          <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
-            <VisitorCounterBadge stats={visitStats} variant="header" />
-
-            {/* Кнопка Войти / Регистрация */}
-            <button
-              type="button"
-              onClick={() => setAuthModalOpen(true)}
-              className="border border-[#fef3c7]/30 hover:border-[#fef3c7]/60 bg-transparent hover:bg-white/10 text-[#fef3c7] rounded-lg px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium transition cursor-pointer flex items-center gap-1.5"
+      {/* ШАПКА САЙТА (HEADER) */}
+      {onSelectPortalSection ? (
+        <PortalHeader
+          activeSection="library"
+          onSelectSection={onSelectPortalSection}
+        />
+      ) : (
+        <header className="sticky top-0 z-30 bg-[#06392c] text-white shadow-md border-b border-[#04271e]">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex items-center justify-between gap-4">
+            {/* Логотип: открытая книга и название «Библиотека благодеяний» */}
+            <div
+              onClick={() => {
+                setSearchQuery('');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              className="flex items-center gap-2.5 cursor-pointer group select-none min-w-0"
             >
-              <User className="w-3.5 h-3.5 text-amber-300" />
-              <span>{currentUser ? currentUser : 'Войти / Регистрация'}</span>
-            </button>
+              <BookOpen className="w-5 h-5 text-[#fef3c7] transition-transform group-hover:scale-105 shrink-0" />
+              <h1 className="font-serif font-bold text-base sm:text-lg lg:text-xl text-[#fef3c7] tracking-tight truncate">
+                Библиотека благодеяний
+              </h1>
+            </div>
 
-            {/* Кнопка Файлы с иконкой загрузки */}
-            <button
-              type="button"
-              onClick={() => setAmveraModalOpen(true)}
-              title="Файлы и сборка приложения"
-              className="border border-[#fef3c7]/30 hover:border-[#fef3c7]/60 bg-transparent hover:bg-white/10 text-[#fef3c7] rounded-lg px-3 sm:px-3.5 py-1.5 text-xs sm:text-sm font-medium transition cursor-pointer flex items-center gap-1.5"
-            >
-              <Download className="w-3.5 h-3.5 text-amber-300" />
-              <span>Файлы</span>
-            </button>
+            {/* Правая часть: счетчик визитов, кнопка «Войти / Регистрация» и кнопка «Файлы» */}
+            <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
+              <VisitorCounterBadge stats={visitStats} variant="header" />
+
+              {/* Кнопка Войти / Регистрация */}
+              <button
+                type="button"
+                onClick={() => setAuthModalOpen(true)}
+                className="border border-[#fef3c7]/30 hover:border-[#fef3c7]/60 bg-transparent hover:bg-white/10 text-[#fef3c7] rounded-lg px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium transition cursor-pointer flex items-center gap-1.5"
+              >
+                <User className="w-3.5 h-3.5 text-amber-300" />
+                <span>{currentUser ? currentUser : 'Войти / Регистрация'}</span>
+              </button>
+
+              {/* Кнопка Файлы с иконкой загрузки */}
+              <button
+                type="button"
+                onClick={() => setAmveraModalOpen(true)}
+                title="Файлы и сборка приложения"
+                className="border border-[#fef3c7]/30 hover:border-[#fef3c7]/60 bg-transparent hover:bg-white/10 text-[#fef3c7] rounded-lg px-3 sm:px-3.5 py-1.5 text-xs sm:text-sm font-medium transition cursor-pointer flex items-center gap-1.5"
+              >
+                <Download className="w-3.5 h-3.5 text-amber-300" />
+                <span>Файлы</span>
+              </button>
+            </div>
           </div>
-        </div>
-      </header>
+        </header>
+      )}
 
       {/* ОСНОВНОЙ КОНТЕНТ */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-6">

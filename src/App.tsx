@@ -11,8 +11,13 @@ import { BookData, ChapterData } from './types/reader';
 import { LibraryScreen, QuizOrigin } from './components/LibraryScreen';
 import { ReaderScreen } from './components/ReaderScreen';
 import { QuizScreen } from './components/QuizScreen';
+import { HomeScreen } from './components/HomeScreen';
+import { DuaScreen } from './components/DuaScreen';
+import { AdhkarScreen } from './components/AdhkarScreen';
+import { TasbihScreen } from './components/TasbihScreen';
+import { PortalSection } from './components/PortalHeader';
 
-type ScreenType = 'library' | 'reader' | 'quiz';
+type ScreenType = 'portal' | 'reader' | 'quiz';
 
 function findBookEntryByChapterId(
   chapterId: number
@@ -48,7 +53,8 @@ export default function App() {
     getChapterProgress,
   } = useReaderState();
 
-  const [screen, setScreen] = useState<ScreenType>('library');
+  const [screen, setScreen] = useState<ScreenType>('portal');
+  const [portalSection, setPortalSection] = useState<PortalSection>('home');
   const [selectedBookId, setSelectedBookId] = useState<string | null>(null);
   const [activeChapter, setActiveChapter] = useState<ChapterData | null>(null);
   const [quizOrigin, setQuizOrigin] = useState<QuizOrigin>('library');
@@ -69,10 +75,11 @@ export default function App() {
     return EASY_GOOD_DEEDS_BOOK;
   }, [selectedBookId, activeChapter]);
 
-  // При загрузке и обновлении сайта всегда открываем главный каталог книг и очищаем остаточный URL-хэш
+  // При загрузке и обновлении сайта открываем Главную страницу и очищаем остаточный URL-хэш
   useEffect(() => {
     try {
-      setScreen('library');
+      setScreen('portal');
+      setPortalSection('home');
       setSelectedBookId(null);
       if (window.location.hash) {
         window.history.replaceState(
@@ -86,9 +93,21 @@ export default function App() {
     }
   }, []);
 
+  // Переключение между разделами портала (Главная, 1. Библиотека, 2. Дуа, 3. Азкары, 4. Тасбих)
+  const handleSelectPortalSection = useCallback((section: PortalSection) => {
+    setScreen('portal');
+    setPortalSection(section);
+    if (section !== 'library') {
+      setSelectedBookId(null);
+    }
+    pushHistoryTag(`section-${section}`);
+  }, []);
+
   // Обработчик выбора книги (переход в оглавление или возврат в каталог)
   const handleSelectBook = useCallback((bookId: string | null) => {
     setSelectedBookId(bookId);
+    setScreen('portal');
+    setPortalSection('library');
     if (bookId) {
       pushHistoryTag('toc');
     }
@@ -117,6 +136,27 @@ export default function App() {
     setScreen('reader');
     pushHistoryTag(`reader-${chapter.id}`);
   }, []);
+
+  // Открытие главы книги «Простые благодеяния» по её номеру (например, из разделов Дуа / Азкары / Тасбих)
+  const handleOpenEasyDeedsChapterNumber = useCallback(
+    (chapterNumber: number) => {
+      const targetChapter =
+        EASY_GOOD_DEEDS_BOOK.chapters.find((ch) =>
+          ch.title.trim().startsWith(`${chapterNumber}.`)
+        ) ||
+        EASY_GOOD_DEEDS_BOOK.chapters.find(
+          (ch) => ch.id === 503 + chapterNumber
+        );
+      if (targetChapter) {
+        handleOpenChapter(targetChapter);
+      } else {
+        setSelectedBookId('prostye-blagodeyaniya');
+        setPortalSection('library');
+        setScreen('portal');
+      }
+    },
+    [handleOpenChapter]
+  );
 
   // Открытие/закрытие сноски
   const handleChangeActiveFnId = useCallback(
@@ -171,15 +211,16 @@ export default function App() {
       return true;
     }
 
-    // 3) Иначе если открыт экран теста (screen === 'quiz') -> вернуть на экран quizOrigin ('reader' или 'library')
+    // 3) Иначе если открыт экран теста (screen === 'quiz') -> вернуть на экран quizOrigin ('reader' или 'portal')
     if (screen === 'quiz') {
-      setScreen(quizOrigin);
+      setScreen(quizOrigin === 'reader' ? 'reader' : 'portal');
       return true;
     }
 
-    // 4) Иначе если открыт экран чтения (screen === 'reader') -> вернуться в оглавление (screen = 'library')
+    // 4) Иначе если открыт экран чтения (screen === 'reader') -> вернуться в оглавление (screen = 'portal', portalSection = 'library')
     if (screen === 'reader') {
-      setScreen('library');
+      setScreen('portal');
+      setPortalSection('library');
       return true;
     }
 
@@ -196,8 +237,22 @@ export default function App() {
       return true;
     }
 
+    // 7) Иначе если открыт один из подразделов портала (library, dua, adhkar, tasbih) -> вернуться на Главную ('home')
+    if (portalSection !== 'home') {
+      setPortalSection('home');
+      return true;
+    }
+
     return false;
-  }, [activeFnId, settingsOpen, screen, quizOrigin, selectedBookId, searchQuery]);
+  }, [
+    activeFnId,
+    settingsOpen,
+    screen,
+    quizOrigin,
+    selectedBookId,
+    searchQuery,
+    portalSection,
+  ]);
 
   // Слушатели popstate и клавиши Escape
   useEffect(() => {
@@ -223,7 +278,46 @@ export default function App() {
     };
   }, [handlePriorityBack]);
 
-  if (screen === 'library' || !activeChapter) {
+  if (screen === 'portal' || !activeChapter) {
+    if (portalSection === 'home') {
+      return (
+        <HomeScreen
+          progress={progress}
+          onSelectSection={handleSelectPortalSection}
+          onOpenBookToc={(bookId) => handleSelectBook(bookId)}
+          onOpenChapter={handleOpenChapter}
+          onOpenEasyDeedsChapterNumber={handleOpenEasyDeedsChapterNumber}
+        />
+      );
+    }
+
+    if (portalSection === 'dua') {
+      return (
+        <DuaScreen
+          onSelectSection={handleSelectPortalSection}
+          onOpenBookChapter={handleOpenEasyDeedsChapterNumber}
+        />
+      );
+    }
+
+    if (portalSection === 'adhkar') {
+      return (
+        <AdhkarScreen
+          onSelectSection={handleSelectPortalSection}
+          onOpenBookChapter={handleOpenEasyDeedsChapterNumber}
+        />
+      );
+    }
+
+    if (portalSection === 'tasbih') {
+      return (
+        <TasbihScreen
+          onSelectSection={handleSelectPortalSection}
+          onOpenBookChapter={handleOpenEasyDeedsChapterNumber}
+        />
+      );
+    }
+
     return (
       <LibraryScreen
         book={activeBook}
@@ -234,6 +328,7 @@ export default function App() {
         onStartQuiz={handleStartQuiz}
         selectedBookId={selectedBookId}
         onSelectBook={handleSelectBook}
+        onSelectPortalSection={handleSelectPortalSection}
       />
     );
   }
@@ -282,7 +377,8 @@ export default function App() {
         onBackToLibrary={() => {
           setActiveFnId(null);
           setSettingsOpen(false);
-          setScreen('library');
+          setScreen('portal');
+          setPortalSection('library');
         }}
         onStartQuiz={handleStartQuiz}
         onOpenPreviousChapter={(prevCh) => {
@@ -310,7 +406,10 @@ export default function App() {
         }
         setScreen('reader');
       }}
-      onBackToLibrary={() => setScreen('library')}
+      onBackToLibrary={() => {
+        setScreen('portal');
+        setPortalSection('library');
+      }}
       onOpenNextChapter={(nextCh) => {
         updateChapterOffset(nextCh.id, 0);
         handleOpenChapter(nextCh);
