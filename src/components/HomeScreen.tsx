@@ -25,10 +25,7 @@ import { BookCoverRenderer } from './BookCoverRenderer';
 import { useVisitCounter } from '../hooks/useVisitCounter';
 import { VisitorCounterBadge } from './VisitorCounterBadge';
 import { PrayerTimesBlock } from './PrayerTimesBlock';
-import {
-  IphoneVideoGuideModal,
-  IphoneVideoGuideBanner,
-} from './IphoneVideoGuideModal';
+import { IphoneVideoGuideModal } from './IphoneVideoGuideModal';
 
 export interface HomeScreenProps {
   progress: Record<number, ChapterProgress>;
@@ -229,9 +226,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             </div>
           </div>
         </section>
-
-        {/* БАННЕР ВИДЕО-ИНСТРУКЦИИ ДЛЯ IPHONE */}
-        <IphoneVideoGuideBanner onOpenGuide={() => setIphoneGuideOpen(true)} />
 
         {/* ОСНОВНЫЕ 4 РАЗДЕЛА ГЛАВНОЙ СТРАНИЦЫ */}
         <section>
