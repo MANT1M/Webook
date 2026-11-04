@@ -163,7 +163,7 @@ export const PrayerTimesBlock: React.FC<PrayerTimesBlockProps> = ({
 
             <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
               <h2 className="font-serif text-2xl sm:text-3xl font-bold text-[#fef3c7] tracking-tight">
-                Время намаза
+                Время намаза (Уфа)
               </h2>
               <span className="text-xs sm:text-sm text-emerald-100/90 font-medium">
                 Миләди:{' '}
