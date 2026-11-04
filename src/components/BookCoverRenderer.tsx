@@ -18,7 +18,9 @@ export const BookCoverRenderer: React.FC<BookCoverRendererProps> = ({
 
   // Если передана ссылка на картинку обложки и нет ошибки загрузки
   if (coverImageUrl && !hasError) {
-    const isPageSheetCover = coverImageUrl.includes('abu_hanifa_cover');
+    const isPageSheetCover =
+      coverImageUrl.includes('abu_hanifa_cover') ||
+      coverImageUrl.includes('____________a6da8131');
 
     return (
       <div className="w-full relative aspect-[403/493] rounded-lg overflow-hidden shadow-xs hover:shadow-md select-none border border-slate-200/80 bg-[#f4f5f6] flex items-center justify-center transition-all duration-300">
@@ -35,7 +37,7 @@ export const BookCoverRenderer: React.FC<BookCoverRendererProps> = ({
             <img
               src={coverImageUrl}
               alt={`${title} — ${author}`}
-              className="w-full h-full object-contain pl-1"
+              className="w-full h-full object-cover"
               onError={() => setHasError(true)}
               loading="lazy"
             />

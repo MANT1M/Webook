@@ -27,10 +27,10 @@ const NAV_ITEMS: {
   icon: React.FC<{ className?: string }>;
 }[] = [
   { id: 'home', label: 'Главная', icon: Home },
-  { id: 'library', label: 'Библиотека', num: '1', icon: BookOpen },
+  { id: 'tasbih', label: 'Тасбих', num: '1', icon: Compass },
   { id: 'dua', label: 'Дуа', num: '2', icon: Sparkles },
   { id: 'adhkar', label: 'Азкары', num: '3', icon: Sun },
-  { id: 'tasbih', label: 'Тасбих', num: '4', icon: Compass },
+  { id: 'library', label: 'Библиотека', num: '4', icon: BookOpen },
 ];
 
 export const PortalHeader: React.FC<PortalHeaderProps> = ({
@@ -90,7 +90,7 @@ export const PortalHeader: React.FC<PortalHeaderProps> = ({
                   Библиотека благодеяний
                 </span>
                 <span className="hidden sm:block text-[11px] text-emerald-200/80 tracking-wide">
-                  Книги · Дуа · Азкары · Тасбих
+                  Тасбих · Дуа · Азкары · Книги
                 </span>
               </div>
             </button>

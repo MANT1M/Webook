@@ -30,6 +30,14 @@
         "activeReaders": {
           "type": "object",
           "description": "Map of deviceId to last activity epoch timestamp (ms) for tracking online readers active within the last 5 minutes"
+        },
+        "dailyHistory": {
+          "type": "object",
+          "description": "Map of date string (YYYY-MM-DD) to the number of unique visitors recorded on that day"
+        },
+        "deviceBreakdown": {
+          "type": "object",
+          "description": "Map of device category (desktop, mobile, tablet) to unique visitor count"
         }
       },
       "required": ["totalVisits"]

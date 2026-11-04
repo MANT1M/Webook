@@ -23,6 +23,7 @@ import { PortalHeader, PortalSection } from './PortalHeader';
 import { BookCoverRenderer } from './BookCoverRenderer';
 import { useVisitCounter } from '../hooks/useVisitCounter';
 import { VisitorCounterBadge } from './VisitorCounterBadge';
+import { PrayerTimesBlock } from './PrayerTimesBlock';
 
 export interface HomeScreenProps {
   progress: Record<number, ChapterProgress>;
@@ -90,15 +91,15 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const mainSections = [
     {
       num: '01',
-      id: 'library' as PortalSection,
-      title: '1. Библиотека',
-      subtitle: 'Электронный каталог исламских книг и хрестоматий',
+      id: 'tasbih' as PortalSection,
+      title: '1. Тасбих',
+      subtitle: 'Интерактивный цифровой счётчик зикра и салаватов',
       description:
-        'Интерактивное чтение книг «Простые благодеяния» муфтия Мухаммада Таки Усмани и «Канонические труды Величайшего имама Абу Ханифы по вероучению» со сносками и проверочными тестами.',
-      meta: `${libraryStats.booksCount} книги · Прочитано разделов: ${libraryStats.passedChapters}`,
-      cta: 'Открыть Библиотеку',
-      icon: BookOpen,
-      accentBg: 'from-[#06392c] to-[#084d3b]',
+        'Удобный счётчик поминаний (Субхана-Ллах, Альхамду ли-Ллях, Аллаху Акбар, Истигфар, Салават, Хаукаля) с выбором цели (33, 99, 100, ∞), круговой шкалой и сохранением истории.',
+      meta: `Всего зикров: ${tasbihStats.totalAllTime} · Активно: ${tasbihStats.activePresetTitle}`,
+      cta: 'Открыть Тасбих',
+      icon: Compass,
+      accentBg: 'from-[#084737] to-[#04271e]',
     },
     {
       num: '02',
@@ -126,15 +127,15 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     },
     {
       num: '04',
-      id: 'tasbih' as PortalSection,
-      title: '4. Тасбих',
-      subtitle: 'Интерактивный цифровой счётчик зикра и салаватов',
+      id: 'library' as PortalSection,
+      title: '4. Библиотека',
+      subtitle: 'Электронный каталог исламских книг и хрестоматий',
       description:
-        'Удобный счётчик поминаний (Субхана-Ллах, Альхамду ли-Ллях, Аллаху Акбар, Истигфар, Салават, Хаукаля) с выбором цели (33, 99, 100, ∞), круговой шкалой и сохранением истории.',
-      meta: `Всего зикров: ${tasbihStats.totalAllTime} · Активно: ${tasbihStats.activePresetTitle}`,
-      cta: 'Открыть Тасбих',
-      icon: Compass,
-      accentBg: 'from-[#084737] to-[#04271e]',
+        'Интерактивное чтение книг «Простые благодеяния» муфтия Мухаммада Таки Усмани, «Канонические труды Величайшего имама Абу Ханифы по вероучению» и «Зачем следовать мазхабу? [таклид]» со сносками и проверочными тестами.',
+      meta: `${libraryStats.booksCount} книги · Прочитано разделов: ${libraryStats.passedChapters}`,
+      cta: 'Открыть Библиотеку',
+      icon: BookOpen,
+      accentBg: 'from-[#06392c] to-[#084d3b]',
     },
   ];
 
@@ -171,11 +172,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             <div className="flex flex-wrap items-center justify-center gap-2.5 sm:gap-3 mb-6">
               <button
                 type="button"
-                onClick={() => onSelectSection('library')}
+                onClick={() => onSelectSection('tasbih')}
                 className="bg-[#fef3c7] hover:bg-amber-200 text-[#06392c] font-bold text-xs sm:text-sm px-4 sm:px-5 py-2.5 rounded-xl transition cursor-pointer flex items-center gap-2 shadow-xs"
               >
-                <BookOpen className="w-4 h-4" />
-                <span>1. Библиотека</span>
+                <Compass className="w-4 h-4" />
+                <span>1. Тасбих</span>
               </button>
               <button
                 type="button"
@@ -195,11 +196,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               </button>
               <button
                 type="button"
-                onClick={() => onSelectSection('tasbih')}
+                onClick={() => onSelectSection('library')}
                 className="bg-white/10 hover:bg-white/20 text-[#fef3c7] border border-amber-300/30 font-semibold text-xs sm:text-sm px-4 sm:px-5 py-2.5 rounded-xl transition cursor-pointer flex items-center gap-2"
               >
-                <Compass className="w-4 h-4 text-amber-300" />
-                <span>4. Тасбих</span>
+                <BookOpen className="w-4 h-4 text-amber-300" />
+                <span>4. Библиотека</span>
               </button>
             </div>
 
@@ -208,6 +209,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             </div>
           </div>
         </section>
+
+        {/* БЛОК «ВРЕМЯ НАМАЗА» */}
+        <PrayerTimesBlock onSelectSection={onSelectSection} />
 
         {/* ОСНОВНЫЕ 4 РАЗДЕЛА ГЛАВНОЙ СТРАНИЦЫ */}
         <section>
@@ -411,7 +415,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 className="w-full py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200/80 text-slate-800 text-xs font-semibold transition cursor-pointer flex items-center justify-center gap-2"
               >
                 <BookOpen className="w-4 h-4 text-[#06392c]" />
-                <span>Перейти в раздел «1. Библиотека»</span>
+                <span>Перейти в раздел «4. Библиотека»</span>
               </button>
             </div>
           </div>
@@ -428,7 +432,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               <span className="font-serif font-bold text-slate-800">
                 Библиотека благодеяний
               </span>
-              <span>— 1. Библиотека · 2. Дуа · 3. Азкары · 4. Тасбих</span>
+              <span>— 1. Тасбих · 2. Дуа · 3. Азкары · 4. Библиотека</span>
             </div>
             <div>
               По материалам книги «Простые благодеяния» (Муфтий Мухаммад Таки Усмани)

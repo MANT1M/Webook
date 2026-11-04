@@ -522,7 +522,9 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
                       </span>
                     </div>
                     <span className="text-slate-500 text-[11px]">
-                      {unreadCount > 0
+                      {totalChapters === 0
+                        ? 'Главы книги ещё не добавлены'
+                        : unreadCount > 0
                         ? `Осталось прочитать: ${unreadCount}`
                         : 'Поздравляем! Все главы прочитаны 🎉'}
                     </span>
@@ -538,32 +540,34 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
 
                   {/* Кнопки действий */}
                   <div className="flex flex-wrap items-center gap-3 pt-1">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (ratio > 0 && resumeChapter) {
-                          onOpenChapter(resumeChapter);
-                        } else {
-                          onOpenChapter(firstChapter);
+                    {firstChapter && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (ratio > 0 && resumeChapter) {
+                            onOpenChapter(resumeChapter);
+                          } else {
+                            onOpenChapter(firstChapter);
+                          }
+                        }}
+                        className="bg-[#06392c] hover:opacity-95 active:scale-[0.99] text-[#fef3c7] font-semibold text-xs sm:text-sm px-5 py-2.5 rounded-xl shadow-xs transition cursor-pointer flex items-center gap-2"
+                        title={
+                          ratio > 0
+                            ? `Продолжить: ${resumeChapter?.title}`
+                            : `Начать чтение: 1. ${firstChapter?.title}`
                         }
-                      }}
-                      className="bg-[#06392c] hover:opacity-95 active:scale-[0.99] text-[#fef3c7] font-semibold text-xs sm:text-sm px-5 py-2.5 rounded-xl shadow-xs transition cursor-pointer flex items-center gap-2"
-                      title={
-                        ratio > 0
-                          ? `Продолжить: ${resumeChapter?.title}`
-                          : `Начать чтение: 1. ${firstChapter?.title}`
-                      }
-                    >
-                      <BookOpen className="w-4 h-4 text-amber-300" />
-                      <span>
-                        {ratio > 0
-                          ? `Продолжить: ${resumeChapter?.title ?? 'Глава 1'}`
-                          : 'Начать чтение с первой главы'}
-                      </span>
-                    </button>
+                      >
+                        <BookOpen className="w-4 h-4 text-amber-300" />
+                        <span>
+                          {ratio > 0
+                            ? `Продолжить: ${resumeChapter?.title ?? 'Глава 1'}`
+                            : 'Начать чтение с первой главы'}
+                        </span>
+                      </button>
+                    )}
 
                     {/* Если уже есть прогресс (ratio > 0), даем быстрый переход к 1-й главе */}
-                    {ratio > 0 && (
+                    {ratio > 0 && firstChapter && (
                       <button
                         type="button"
                         onClick={() => onOpenChapter(firstChapter)}
@@ -1041,6 +1045,13 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
                   );
                 })}
                   </div>
+                ) : totalChapters === 0 ? (
+                  <div className="bg-white border border-slate-200 rounded-2xl p-10 text-center max-w-lg mx-auto">
+                    <BookOpen className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                    <p className="text-slate-600 text-sm">
+                      В этой книге пока нет добавленных глав.
+                    </p>
+                  </div>
                 ) : (
                   <div className="bg-white border border-slate-200 rounded-2xl p-10 text-center max-w-lg mx-auto">
                     <BookOpen className="w-8 h-8 text-slate-300 mx-auto mb-2" />
@@ -1225,6 +1236,8 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
               <span className="text-xs text-slate-500 font-medium bg-slate-200/70 px-2.5 py-0.5 rounded-full">
                 {filteredBooks.length === 1
                   ? '1 книга'
+                  : filteredBooks.length >= 2 && filteredBooks.length <= 4
+                  ? `${filteredBooks.length} книги`
                   : `${filteredBooks.length} книг`}
               </span>
             </div>

@@ -196,7 +196,7 @@ export const TasbihScreen: React.FC<TasbihScreenProps> = ({
           </button>
 
           <div className="text-xs text-slate-500 uppercase tracking-widest">
-            Раздел 04 · Интерактивный Тасбих
+            Раздел 01 · Интерактивный Тасбих
           </div>
         </div>
 
