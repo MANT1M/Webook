@@ -144,6 +144,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       <PortalHeader activeSection="home" onSelectSection={onSelectSection} />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-10">
+        {/* БЛОК «ВРЕМЯ НАМАЗА» */}
+        <PrayerTimesBlock onSelectSection={onSelectSection} />
+
         {/* ГЛАВНЫЙ ПРИВЕТСТВЕННЫЙ БАННЕР */}
         <section className="relative rounded-3xl bg-[#06392c] text-white overflow-hidden shadow-lg border border-[#04271e]">
           <div
@@ -156,50 +159,50 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           <div className="absolute -right-16 -bottom-20 w-72 h-72 border-4 border-amber-300/10 rounded-full pointer-events-none" />
           <div className="absolute -left-16 -top-20 w-72 h-72 border-4 border-amber-300/10 rounded-full pointer-events-none" />
 
-          <div className="relative z-10 px-5 sm:px-10 py-8 sm:py-12 lg:py-14 text-center max-w-3xl mx-auto">
-            <div className="text-xs uppercase tracking-widest text-amber-300/90 font-semibold mb-2.5">
+          <div className="relative z-10 px-4 sm:px-10 py-6 sm:py-10 lg:py-12 text-center max-w-3xl mx-auto">
+            <div className="text-[11px] sm:text-xs uppercase tracking-widest text-amber-300/90 font-semibold mb-1.5 sm:mb-2">
               Образовательный и духовный портал
             </div>
-            <h1 className="font-serif text-2xl sm:text-4xl lg:text-[42px] font-bold text-[#fef3c7] leading-tight mb-3">
+            <h1 className="font-serif text-2xl sm:text-4xl lg:text-[42px] font-bold text-[#fef3c7] leading-tight mb-2 sm:mb-3">
               Библиотека благодеяний
             </h1>
-            <p className="text-xs sm:text-sm md:text-base text-emerald-100/90 leading-relaxed mb-6">
+            <p className="text-xs sm:text-sm md:text-base text-emerald-100/90 leading-relaxed mb-4 sm:mb-6">
               Чтение канонических книг, достоверные мольбы (дуа), ежедневные утренние
               и вечерние азкары и интерактивный тасбих в одном пространстве.
             </p>
 
             {/* Быстрые кнопки 4 разделов внутри баннера */}
-            <div className="flex flex-wrap items-center justify-center gap-2.5 sm:gap-3 mb-6">
+            <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center justify-center gap-2 sm:gap-3 mb-4 sm:mb-6 max-w-md sm:max-w-none mx-auto">
               <button
                 type="button"
                 onClick={() => onSelectSection('tasbih')}
-                className="bg-[#fef3c7] hover:bg-amber-200 text-[#06392c] font-bold text-xs sm:text-sm px-4 sm:px-5 py-2.5 rounded-xl transition cursor-pointer flex items-center gap-2 shadow-xs"
+                className="bg-[#fef3c7] hover:bg-amber-200 text-[#06392c] font-bold text-xs sm:text-sm px-3.5 sm:px-5 py-2.5 rounded-xl transition cursor-pointer flex items-center justify-center gap-2 shadow-xs"
               >
-                <Compass className="w-4 h-4" />
+                <Compass className="w-4 h-4 shrink-0" />
                 <span>1. Тасбих</span>
               </button>
               <button
                 type="button"
                 onClick={() => onSelectSection('dua')}
-                className="bg-white/10 hover:bg-white/20 text-[#fef3c7] border border-amber-300/30 font-semibold text-xs sm:text-sm px-4 sm:px-5 py-2.5 rounded-xl transition cursor-pointer flex items-center gap-2"
+                className="bg-white/10 hover:bg-white/20 text-[#fef3c7] border border-amber-300/30 font-semibold text-xs sm:text-sm px-3.5 sm:px-5 py-2.5 rounded-xl transition cursor-pointer flex items-center justify-center gap-2"
               >
-                <Sparkles className="w-4 h-4 text-amber-300" />
+                <Sparkles className="w-4 h-4 text-amber-300 shrink-0" />
                 <span>2. Дуа</span>
               </button>
               <button
                 type="button"
                 onClick={() => onSelectSection('adhkar')}
-                className="bg-white/10 hover:bg-white/20 text-[#fef3c7] border border-amber-300/30 font-semibold text-xs sm:text-sm px-4 sm:px-5 py-2.5 rounded-xl transition cursor-pointer flex items-center gap-2"
+                className="bg-white/10 hover:bg-white/20 text-[#fef3c7] border border-amber-300/30 font-semibold text-xs sm:text-sm px-3.5 sm:px-5 py-2.5 rounded-xl transition cursor-pointer flex items-center justify-center gap-2"
               >
-                <Sun className="w-4 h-4 text-amber-300" />
+                <Sun className="w-4 h-4 text-amber-300 shrink-0" />
                 <span>3. Азкары</span>
               </button>
               <button
                 type="button"
                 onClick={() => onSelectSection('library')}
-                className="bg-white/10 hover:bg-white/20 text-[#fef3c7] border border-amber-300/30 font-semibold text-xs sm:text-sm px-4 sm:px-5 py-2.5 rounded-xl transition cursor-pointer flex items-center gap-2"
+                className="bg-white/10 hover:bg-white/20 text-[#fef3c7] border border-amber-300/30 font-semibold text-xs sm:text-sm px-3.5 sm:px-5 py-2.5 rounded-xl transition cursor-pointer flex items-center justify-center gap-2"
               >
-                <BookOpen className="w-4 h-4 text-amber-300" />
+                <BookOpen className="w-4 h-4 text-amber-300 shrink-0" />
                 <span>4. Библиотека</span>
               </button>
             </div>
@@ -209,9 +212,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             </div>
           </div>
         </section>
-
-        {/* БЛОК «ВРЕМЯ НАМАЗА» */}
-        <PrayerTimesBlock onSelectSection={onSelectSection} />
 
         {/* ОСНОВНЫЕ 4 РАЗДЕЛА ГЛАВНОЙ СТРАНИЦЫ */}
         <section>

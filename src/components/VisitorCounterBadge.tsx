@@ -651,11 +651,11 @@ export const VisitorCounterBadge: React.FC<VisitorCounterBadgeProps> = ({
             </button>
           </div>
 
-          {/* Главные карточки: Онлайн сейчас и Уникальных за день */}
+          {/* Главные карточки: Онлайн и Уникальных */}
           <div className="grid grid-cols-2 gap-3 mb-4">
             <div className="bg-emerald-50/90 border border-emerald-200 rounded-xl p-3.5">
               <div className="flex items-center justify-between mb-1">
-                <span className="text-xs font-medium text-emerald-800">Сейчас онлайн</span>
+                <span className="text-xs font-medium text-emerald-800">Онлайн</span>
                 <span className="relative flex h-2.5 w-2.5">
                   {onlineReaders > 0 ? (
                     <>
@@ -675,7 +675,7 @@ export const VisitorCounterBadge: React.FC<VisitorCounterBadgeProps> = ({
 
             <div className="bg-amber-50/90 border border-amber-200 rounded-xl p-3.5">
               <div className="flex items-center justify-between mb-1">
-                <span className="text-xs font-medium text-amber-900">Уникальных за день</span>
+                <span className="text-xs font-medium text-amber-900">Уникальных</span>
                 <Calendar className="w-3.5 h-3.5 text-amber-700" />
               </div>
               <div className="text-2xl font-bold text-amber-950">{formattedDailyUnique}</div>
@@ -826,11 +826,11 @@ export const VisitorCounterBadge: React.FC<VisitorCounterBadgeProps> = ({
           type="button"
           data-ignore-activity="true"
           onClick={openModal}
-          className="inline-flex flex-wrap items-center gap-3 bg-black/25 hover:bg-black/35 backdrop-blur-sm border border-amber-200/20 px-3.5 py-1.5 rounded-xl text-xs text-amber-100 transition-colors cursor-pointer text-left"
+          className="inline-flex flex-wrap items-center justify-center gap-x-2.5 sm:gap-x-3 gap-y-1.5 bg-black/25 hover:bg-black/35 backdrop-blur-sm border border-amber-200/20 px-3 sm:px-3.5 py-2 sm:py-1.5 rounded-xl text-[11px] sm:text-xs text-amber-100 transition-colors cursor-pointer"
           title="Нажмите для просмотра графика динамики, видов устройств и статистики"
         >
-          <div className="flex items-center gap-1.5">
-            <span className="relative flex h-2 w-2">
+          <div className="flex items-center gap-1.5 whitespace-nowrap">
+            <span className="relative flex h-2 w-2 shrink-0">
               {onlineReaders > 0 ? (
                 <>
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
@@ -841,31 +841,45 @@ export const VisitorCounterBadge: React.FC<VisitorCounterBadgeProps> = ({
               )}
             </span>
             <span>
-              Сейчас онлайн: <strong className="text-emerald-300 font-semibold">{formattedOnline}</strong>
+              Онлайн:{' '}
+              <strong className="text-emerald-300 font-semibold tabular-nums">
+                {formattedOnline}
+              </strong>
             </span>
           </div>
-          <span className="w-1 h-1 rounded-full bg-amber-300/40" />
-          <div className="flex items-center gap-1.5">
-            <Calendar className="w-3.5 h-3.5 text-amber-300" />
+
+          <span className="text-amber-300/40 select-none">·</span>
+
+          <div className="flex items-center gap-1 whitespace-nowrap">
+            <Calendar className="w-3.5 h-3.5 text-amber-300 shrink-0" />
             <span>
-              Уникальных за день:{' '}
-              <strong className="text-white font-semibold">
+              Уникальных:{' '}
+              <strong className="text-white font-semibold tabular-nums">
                 {loading && totalVisits === 0 ? '...' : formattedDailyUnique}
               </strong>
             </span>
           </div>
-          <span className="w-1 h-1 rounded-full bg-amber-300/40" />
-          <div className="flex items-center gap-1.5">
-            {renderDeviceIcon(currentDevice.category, 'w-3.5 h-3.5 text-amber-300')}
-            <span>
-              Устройство:{' '}
-              <strong className="text-white font-semibold">{currentDevice.label}</strong>
-            </span>
+
+          <span className="hidden sm:inline text-amber-300/40 select-none">·</span>
+
+          <div className="flex items-center gap-1 whitespace-nowrap">
+            {renderDeviceIcon(
+              currentDevice.category,
+              'w-3.5 h-3.5 text-amber-300 shrink-0'
+            )}
+            <span className="hidden sm:inline">Устройство:</span>
+            <strong className="text-white font-semibold">
+              {currentDevice.label}
+            </strong>
           </div>
-          <span className="w-1 h-1 rounded-full bg-amber-300/40" />
-          <div className="flex items-center gap-1 text-emerald-300 font-medium">
-            <TrendingUp className="w-3.5 h-3.5" />
-            <span className="underline decoration-emerald-400/50 underline-offset-2">График</span>
+
+          <span className="text-amber-300/40 select-none">·</span>
+
+          <div className="flex items-center gap-1 text-emerald-300 font-medium whitespace-nowrap">
+            <TrendingUp className="w-3.5 h-3.5 shrink-0" />
+            <span className="underline decoration-emerald-400/50 underline-offset-2">
+              График
+            </span>
           </div>
         </button>
         {renderStatsModal()}
@@ -880,7 +894,7 @@ export const VisitorCounterBadge: React.FC<VisitorCounterBadgeProps> = ({
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           {/* Общая статистика Firebase */}
           <div className="flex flex-wrap items-center gap-4 sm:gap-6 text-xs text-slate-600">
-            {/* Сейчас онлайн */}
+            {/* Онлайн */}
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-lg bg-emerald-100/80 border border-emerald-200 flex items-center justify-center text-[#06392c] relative">
                 <Activity className="w-4 h-4 text-emerald-700" />
@@ -896,20 +910,20 @@ export const VisitorCounterBadge: React.FC<VisitorCounterBadgeProps> = ({
                 </span>
               </div>
               <div>
-                <div className="text-[11px] text-slate-400">Сейчас онлайн (активность &lt; 5 мин)</div>
+                <div className="text-[11px] text-slate-400">Онлайн (активность &lt; 5 мин)</div>
                 <div className="font-bold text-sm text-emerald-800">{formattedOnline} чел.</div>
               </div>
             </div>
 
             <div className="h-6 w-px bg-slate-200 hidden sm:block" />
 
-            {/* Уникальных за день */}
+            {/* Уникальных */}
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-lg bg-amber-100/80 border border-amber-200 flex items-center justify-center text-amber-900">
                 <Calendar className="w-4 h-4" />
               </div>
               <div>
-                <div className="text-[11px] text-slate-400">Уникальных за день</div>
+                <div className="text-[11px] text-slate-400">Уникальных</div>
                 <div className="font-bold text-sm text-slate-900">
                   {loading && totalVisits === 0 ? 'Загрузка...' : `${formattedDailyUnique} чел.`}
                 </div>
