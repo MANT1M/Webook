@@ -172,7 +172,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             </p>
 
             {/* Быстрые кнопки 4 разделов внутри баннера */}
-            <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center justify-center gap-2 sm:gap-3 mb-4 sm:mb-6 max-w-md sm:max-w-none mx-auto">
+            <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center justify-center gap-2 sm:gap-3 max-w-md sm:max-w-none mx-auto">
               <button
                 type="button"
                 onClick={() => onSelectSection('tasbih')}
@@ -207,7 +207,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               </button>
             </div>
 
-            <div className="flex justify-center">
+            <div className="flex justify-center empty:hidden mt-4 sm:mt-6">
               <VisitorCounterBadge stats={visitStats} variant="banner" />
             </div>
           </div>

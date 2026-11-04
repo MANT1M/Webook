@@ -9,6 +9,7 @@ import {
   Download,
 } from 'lucide-react';
 import { useVisitCounter } from '../hooks/useVisitCounter';
+import { useAuthUser } from '../hooks/useAuthUser';
 import { VisitorCounterBadge } from './VisitorCounterBadge';
 import { AuthModal } from './AuthModal';
 import { AmveraFilesModal } from './AmveraFilesModal';
@@ -38,34 +39,9 @@ export const PortalHeader: React.FC<PortalHeaderProps> = ({
   onSelectSection,
 }) => {
   const visitStats = useVisitCounter();
+  const { userName: currentUser } = useAuthUser();
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [amveraModalOpen, setAmveraModalOpen] = useState(false);
-
-  const [currentUser, setCurrentUser] = useState<string | null>(() => {
-    try {
-      return localStorage.getItem('library_user') || null;
-    } catch {
-      return null;
-    }
-  });
-
-  const handleLogin = (name: string) => {
-    setCurrentUser(name);
-    try {
-      localStorage.setItem('library_user', name);
-    } catch {
-      // ignore
-    }
-  };
-
-  const handleLogout = () => {
-    setCurrentUser(null);
-    try {
-      localStorage.removeItem('library_user');
-    } catch {
-      // ignore
-    }
-  };
 
   return (
     <>
@@ -198,9 +174,6 @@ export const PortalHeader: React.FC<PortalHeaderProps> = ({
       <AuthModal
         isOpen={authModalOpen}
         onClose={() => setAuthModalOpen(false)}
-        currentUser={currentUser}
-        onLogin={handleLogin}
-        onLogout={handleLogout}
       />
     </>
   );

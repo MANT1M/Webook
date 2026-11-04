@@ -25,6 +25,7 @@ import {
   DailyVisitorPoint,
   DeviceCategory,
 } from '../hooks/useVisitCounter';
+import { useAuthUser } from '../hooks/useAuthUser';
 
 interface VisitorCounterBadgeProps {
   stats: VisitStats;
@@ -52,11 +53,16 @@ export const VisitorCounterBadge: React.FC<VisitorCounterBadgeProps> = ({
   stats,
   variant = 'header',
 }) => {
+  const { isStatsAdmin } = useAuthUser();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [chartPeriod, setChartPeriod] = useState<ChartPeriod>(14);
   const [chartMode, setChartMode] = useState<ChartMode>('area');
   const [hoveredPoint, setHoveredPoint] = useState<DailyVisitorPoint | null>(null);
   const [showFooterChart, setShowFooterChart] = useState<boolean>(true);
+
+  if (!isStatsAdmin) {
+    return null;
+  }
 
   const {
     totalVisits,

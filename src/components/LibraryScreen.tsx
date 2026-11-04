@@ -25,6 +25,7 @@ import {
   INTERACTIVE_BOOKS_MAP,
 } from '../data/catalogBooks';
 import { useVisitCounter } from '../hooks/useVisitCounter';
+import { useAuthUser } from '../hooks/useAuthUser';
 import { VisitorCounterBadge } from './VisitorCounterBadge';
 import { PortalHeader, PortalSection } from './PortalHeader';
 
@@ -70,13 +71,7 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
     useState<CatalogBook | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  const [currentUser, setCurrentUser] = useState<string | null>(() => {
-    try {
-      return localStorage.getItem('library_user') || null;
-    } catch {
-      return null;
-    }
-  });
+  const { userName: currentUser } = useAuthUser();
 
   const [bookmarkedIds, setBookmarkedIds] = useState<Set<string>>(() => {
     try {
@@ -133,24 +128,6 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
       }
       return next;
     });
-  };
-
-  const handleLogin = (name: string) => {
-    setCurrentUser(name);
-    try {
-      localStorage.setItem('library_user', name);
-    } catch {
-      // ignore
-    }
-  };
-
-  const handleLogout = () => {
-    setCurrentUser(null);
-    try {
-      localStorage.removeItem('library_user');
-    } catch {
-      // ignore
-    }
   };
 
   // Активная выбранная книга (для экрана Оглавления)
@@ -1102,9 +1079,6 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
         <AuthModal
           isOpen={authModalOpen}
           onClose={() => setAuthModalOpen(false)}
-          currentUser={currentUser}
-          onLogin={handleLogin}
-          onLogout={handleLogout}
         />
       </div>
     );
@@ -1219,7 +1193,7 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
             </div>
 
             {/* Статистика читателей и посещений под поисковой строкой */}
-            <div className="mt-4 flex justify-center">
+            <div className="mt-4 flex justify-center empty:hidden">
               <VisitorCounterBadge stats={visitStats} variant="banner" />
             </div>
           </div>
@@ -1433,9 +1407,6 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
       <AuthModal
         isOpen={authModalOpen}
         onClose={() => setAuthModalOpen(false)}
-        currentUser={currentUser}
-        onLogin={handleLogin}
-        onLogout={handleLogout}
       />
 
       {/* МОДАЛЬНОЕ ОКНО ПОДРОБНЕЕ О КНИГЕ */}
