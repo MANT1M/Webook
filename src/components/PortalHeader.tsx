@@ -7,12 +7,14 @@ import {
   Home,
   User,
   Download,
+  Smartphone,
 } from 'lucide-react';
 import { useVisitCounter } from '../hooks/useVisitCounter';
 import { useAuthUser } from '../hooks/useAuthUser';
 import { VisitorCounterBadge } from './VisitorCounterBadge';
 import { AuthModal } from './AuthModal';
 import { AmveraFilesModal } from './AmveraFilesModal';
+import { IphoneVideoGuideModal } from './IphoneVideoGuideModal';
 
 export type PortalSection = 'home' | 'library' | 'dua' | 'adhkar' | 'tasbih';
 
@@ -42,6 +44,7 @@ export const PortalHeader: React.FC<PortalHeaderProps> = ({
   const { userName: currentUser } = useAuthUser();
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [amveraModalOpen, setAmveraModalOpen] = useState(false);
+  const [iphoneGuideOpen, setIphoneGuideOpen] = useState(false);
 
   return (
     <>
@@ -104,9 +107,20 @@ export const PortalHeader: React.FC<PortalHeaderProps> = ({
               })}
             </nav>
 
-            {/* Правая часть: счетчик визитов, Войти и Файлы */}
-            <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+            {/* Правая часть: счетчик визитов, На экран iPhone, Войти и Файлы */}
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
               <VisitorCounterBadge stats={visitStats} variant="header" />
+
+              <button
+                type="button"
+                onClick={() => setIphoneGuideOpen(true)}
+                title="Видео-инструкция: Как сохранить на экран Домой iPhone"
+                className="border border-amber-300/40 hover:border-amber-300/80 bg-amber-300/10 hover:bg-amber-300/20 text-[#fef3c7] rounded-lg px-2.5 sm:px-3 py-1.5 text-xs font-semibold transition cursor-pointer flex items-center gap-1.5"
+              >
+                <Smartphone className="w-3.5 h-3.5 text-amber-300 shrink-0" />
+                <span className="hidden md:inline">На экран iPhone</span>
+                <span className="md:hidden">iPhone</span>
+              </button>
 
               <button
                 type="button"
@@ -165,6 +179,11 @@ export const PortalHeader: React.FC<PortalHeaderProps> = ({
           </nav>
         </div>
       </header>
+
+      <IphoneVideoGuideModal
+        isOpen={iphoneGuideOpen}
+        onClose={() => setIphoneGuideOpen(false)}
+      />
 
       <AmveraFilesModal
         isOpen={amveraModalOpen}

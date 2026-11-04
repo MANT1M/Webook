@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   BookOpen,
   Sparkles,
@@ -6,6 +6,7 @@ import {
   Compass,
   ChevronRight,
   Layers,
+  Smartphone,
 } from 'lucide-react';
 import { ChapterData, ChapterProgress } from '../types/reader';
 import {
@@ -24,6 +25,10 @@ import { BookCoverRenderer } from './BookCoverRenderer';
 import { useVisitCounter } from '../hooks/useVisitCounter';
 import { VisitorCounterBadge } from './VisitorCounterBadge';
 import { PrayerTimesBlock } from './PrayerTimesBlock';
+import {
+  IphoneVideoGuideModal,
+  IphoneVideoGuideBanner,
+} from './IphoneVideoGuideModal';
 
 export interface HomeScreenProps {
   progress: Record<number, ChapterProgress>;
@@ -40,6 +45,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   onOpenEasyDeedsChapterNumber,
 }) => {
   const visitStats = useVisitCounter();
+  const [iphoneGuideOpen, setIphoneGuideOpen] = useState(false);
 
   // Статистика чтения по всем интерактивным книгам
   const libraryStats = useMemo(() => {
@@ -207,11 +213,25 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               </button>
             </div>
 
-            <div className="flex justify-center empty:hidden mt-4 sm:mt-6">
+            <div className="mt-4 flex justify-center">
+              <button
+                type="button"
+                onClick={() => setIphoneGuideOpen(true)}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-300/15 hover:bg-amber-300/25 border border-amber-300/40 text-[#fef3c7] text-xs font-semibold transition cursor-pointer"
+              >
+                <Smartphone className="w-4 h-4 text-amber-300 shrink-0" />
+                <span>Видео-инструкция: Как сохранить сайт на экран «Домой» iPhone</span>
+              </button>
+            </div>
+
+            <div className="flex justify-center empty:hidden mt-4 sm:mt-5">
               <VisitorCounterBadge stats={visitStats} variant="banner" />
             </div>
           </div>
         </section>
+
+        {/* БАННЕР ВИДЕО-ИНСТРУКЦИИ ДЛЯ IPHONE */}
+        <IphoneVideoGuideBanner onOpenGuide={() => setIphoneGuideOpen(true)} />
 
         {/* ОСНОВНЫЕ 4 РАЗДЕЛА ГЛАВНОЙ СТРАНИЦЫ */}
         <section>
@@ -440,6 +460,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           </div>
         </div>
       </footer>
+
+      <IphoneVideoGuideModal
+        isOpen={iphoneGuideOpen}
+        onClose={() => setIphoneGuideOpen(false)}
+      />
     </div>
   );
 };
