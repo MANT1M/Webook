@@ -133,6 +133,83 @@ export const PrayerTimesBlock: React.FC<PrayerTimesBlockProps> = ({
 
   const isViewingToday = selectedRowIndex === todayRowIndex;
 
+  // Счётчик дней и прогресс-полоска до священного месяца Рамадан
+  const ramadanStatus = useMemo(() => {
+    const refYear = now.getFullYear();
+    const currentDate = new Date(
+      refYear,
+      activeRow.month - 1,
+      activeRow.day,
+      now.getHours(),
+      now.getMinutes(),
+      now.getSeconds()
+    );
+
+    // Даты начала месяца Рамадан (1 Рамадана) по астрономическому календарю ДУМ РБ / Уфа
+    const ramadanCycles = [
+      {
+        prevStart: new Date(2024, 2, 11, 0, 0, 0),
+        nextStart: new Date(2025, 2, 1, 0, 0, 0),
+        dateLabelRu: '1 марта',
+      },
+      {
+        prevStart: new Date(2025, 2, 1, 0, 0, 0),
+        nextStart: new Date(2026, 1, 18, 0, 0, 0),
+        dateLabelRu: '18 февраля',
+      },
+      {
+        prevStart: new Date(2026, 1, 18, 0, 0, 0),
+        nextStart: new Date(2027, 1, 8, 0, 0, 0),
+        dateLabelRu: '8 февраля',
+      },
+      {
+        prevStart: new Date(2027, 1, 8, 0, 0, 0),
+        nextStart: new Date(2028, 0, 28, 0, 0, 0),
+        dateLabelRu: '28 января',
+      },
+      {
+        prevStart: new Date(2028, 0, 28, 0, 0, 0),
+        nextStart: new Date(2029, 0, 16, 0, 0, 0),
+        dateLabelRu: '16 января',
+      },
+    ];
+
+    const cycle =
+      ramadanCycles.find((c) => currentDate < c.nextStart) ||
+      ramadanCycles[2];
+
+    const msPerDay = 1000 * 60 * 60 * 24;
+    const totalCycleDays = Math.max(
+      1,
+      Math.round((cycle.nextStart.getTime() - cycle.prevStart.getTime()) / msPerDay)
+    );
+    const remainingMs = Math.max(0, cycle.nextStart.getTime() - currentDate.getTime());
+    const daysRemaining = Math.ceil(remainingMs / msPerDay);
+    const daysElapsed = Math.max(0, totalCycleDays - daysRemaining);
+    const progressPercent = Math.min(
+      100,
+      Math.max(0, Math.round((daysElapsed / totalCycleDays) * 100))
+    );
+
+    const mod10 = daysRemaining % 10;
+    const mod100 = daysRemaining % 100;
+    let dayWord = 'дней';
+    if (mod10 === 1 && mod100 !== 11) {
+      dayWord = 'день';
+    } else if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) {
+      dayWord = 'дня';
+    }
+
+    return {
+      daysRemaining,
+      dayWord,
+      totalCycleDays,
+      daysElapsed,
+      progressPercent,
+      dateLabelRu: cycle.dateLabelRu,
+    };
+  }, [activeRow.month, activeRow.day, now]);
+
   return (
     <section
       aria-label="Время намаза"
@@ -306,37 +383,82 @@ export const PrayerTimesBlock: React.FC<PrayerTimesBlockProps> = ({
             </div>
           </div>
 
-          {/* Интерактивный таймер до следующего намаза */}
-          <div className="bg-black/25 backdrop-blur-xs border border-amber-300/25 rounded-2xl px-4 sm:px-5 py-3 sm:py-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
-            <div className="space-y-0.5 w-full sm:w-auto">
-              <div className="text-[11px] uppercase tracking-wider text-emerald-200/80 font-medium">
-                {currentPrayerMeta
-                  ? `Сейчас: ${currentPrayerMeta.tableTitleTt} (${currentPrayerMeta.nameRu})`
-                  : 'Ожидание намаза'}
+          {/* Интерактивный таймер до следующего намаза + Счётчик до месяца Рамадан */}
+          <div className="bg-black/25 backdrop-blur-xs border border-amber-300/25 rounded-2xl px-4 sm:px-5 py-3 sm:py-4 space-y-3.5">
+            {/* Секция 1: Таймер до следующего намаза */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+              <div className="space-y-0.5 w-full sm:w-auto">
+                <div className="text-[11px] uppercase tracking-wider text-emerald-200/80 font-medium">
+                  {currentPrayerMeta
+                    ? `Сейчас: ${currentPrayerMeta.tableTitleTt} (${currentPrayerMeta.nameRu})`
+                    : 'Ожидание намаза'}
+                </div>
+                <div className="text-sm sm:text-base font-bold text-[#fef3c7] flex items-center gap-2">
+                  <span>
+                    Далее: {nextPrayerMeta.tableTitleTt}
+                    {activeStatus.isTomorrowFajr ? ' (завтра)' : ''}
+                  </span>
+                  <span className="text-amber-300 font-mono tabular-nums">
+                    в {activeStatus.nextTimeFormatted}
+                  </span>
+                </div>
+                <div className="w-full sm:w-56 h-1.5 bg-white/10 rounded-full overflow-hidden mt-1.5">
+                  <div
+                    className="h-full bg-amber-300 rounded-full transition-all duration-700"
+                    style={{ width: `${activeStatus.progressPercent}%` }}
+                  />
+                </div>
               </div>
-              <div className="text-sm sm:text-base font-bold text-[#fef3c7] flex items-center gap-2">
-                <span>
-                  Далее: {nextPrayerMeta.tableTitleTt}
-                  {activeStatus.isTomorrowFajr ? ' (завтра)' : ''}
-                </span>
-                <span className="text-amber-300 font-mono tabular-nums">
-                  в {activeStatus.nextTimeFormatted}
-                </span>
-              </div>
-              <div className="w-full sm:w-56 h-1.5 bg-white/10 rounded-full overflow-hidden mt-1.5">
-                <div
-                  className="h-full bg-amber-300 rounded-full transition-all duration-700"
-                  style={{ width: `${activeStatus.progressPercent}%` }}
-                />
+
+              <div className="text-left sm:text-right shrink-0">
+                <div className="text-[10px] uppercase tracking-widest text-amber-200/75 font-semibold">
+                  Осталось
+                </div>
+                <div className="font-mono tabular-nums text-2xl sm:text-3xl font-bold text-[#fef3c7] tracking-tight">
+                  {countdownFormatted}
+                </div>
               </div>
             </div>
 
-            <div className="text-left sm:text-right shrink-0">
-              <div className="text-[10px] uppercase tracking-widest text-amber-200/75 font-semibold">
-                Осталось
+            {/* Секция 2: Счётчик Рамадан и полоска сколько дней осталось до Рамадана */}
+            <div className="pt-3 border-t border-white/15 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+              <div className="space-y-1 w-full sm:flex-1 sm:max-w-md">
+                <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-emerald-200/80 font-medium">
+                  <Moon className="w-3.5 h-3.5 text-amber-300 shrink-0" />
+                  <span>
+                    Священный месяц · начало {ramadanStatus.dateLabelRu} · Первый день поста
+                  </span>
+                </div>
+                <div className="text-sm sm:text-base font-bold text-[#fef3c7] flex flex-wrap items-center justify-between gap-2">
+                  <span>До месяца Рамадан</span>
+                  <span className="text-xs font-medium text-amber-300/90 sm:hidden">
+                    Ещё {ramadanStatus.daysRemaining} {ramadanStatus.dayWord}
+                  </span>
+                </div>
+                <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden mt-1">
+                  <div
+                    className="h-full bg-gradient-to-r from-emerald-400 via-amber-300 to-amber-200 rounded-full transition-all duration-700"
+                    style={{ width: `${ramadanStatus.progressPercent}%` }}
+                  />
+                </div>
+                <div className="flex items-center justify-between text-[10px] text-emerald-200/70 pt-0.5">
+                  <span>Прошло {ramadanStatus.progressPercent}% года</span>
+                  <span>
+                    Осталось {ramadanStatus.daysRemaining} {ramadanStatus.dayWord}
+                  </span>
+                </div>
               </div>
-              <div className="font-mono tabular-nums text-2xl sm:text-3xl font-bold text-[#fef3c7] tracking-tight">
-                {countdownFormatted}
+
+              <div className="text-left sm:text-right shrink-0">
+                <div className="text-[10px] uppercase tracking-widest text-amber-200/75 font-semibold">
+                  До Рамадана
+                </div>
+                <div className="font-mono tabular-nums text-2xl sm:text-3xl font-bold text-[#fef3c7] tracking-tight flex items-baseline gap-1.5">
+                  <span>{ramadanStatus.daysRemaining}</span>
+                  <span className="font-sans text-sm sm:text-base font-semibold text-amber-300">
+                    {ramadanStatus.dayWord}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
