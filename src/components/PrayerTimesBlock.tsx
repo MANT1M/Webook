@@ -216,7 +216,7 @@ export const PrayerTimesBlock: React.FC<PrayerTimesBlockProps> = ({
       className="rounded-3xl bg-white border border-slate-200/90 shadow-sm overflow-hidden"
     >
       {/* ВЕРХНЯЯ ПАНЕЛЬ БЛОКА */}
-      <div className="bg-gradient-to-br from-[#06392c] via-[#074233] to-[#04271e] text-white px-5 sm:px-8 py-6 sm:py-7 relative overflow-hidden">
+      <div className="bg-gradient-to-br from-[#06392c] via-[#074233] to-[#04271e] text-white px-3 sm:px-8 py-6 sm:py-7 relative overflow-hidden">
         <div
           className="absolute inset-0 pointer-events-none opacity-[0.06]"
           style={{
@@ -359,7 +359,7 @@ export const PrayerTimesBlock: React.FC<PrayerTimesBlockProps> = ({
                 return (
                   <div
                     key={item.key}
-                    className={`relative rounded-xl sm:rounded-2xl px-0.5 py-1.5 sm:p-3.5 lg:p-4 transition-all flex flex-col justify-between text-center sm:text-left border min-w-0 ${
+                    className={`relative rounded-xl sm:rounded-2xl px-0.5 py-2.5 sm:p-3.5 lg:p-4 transition-all flex flex-col justify-between text-center sm:text-left border min-w-0 ${
                       isCurrent
                         ? 'bg-[#06392c] text-white border-[#06392c] shadow-md ring-1 sm:ring-2 ring-amber-400/60'
                         : isNext
@@ -371,7 +371,7 @@ export const PrayerTimesBlock: React.FC<PrayerTimesBlockProps> = ({
                       <div className="flex items-center justify-center sm:justify-between gap-1 mb-0.5 sm:mb-1.5">
                         {/* Короткий заголовок на смартфоне без обрезания точками */}
                         <span
-                          className={`sm:hidden text-[8.5px] font-bold uppercase tracking-tighter leading-tight whitespace-nowrap ${
+                          className={`sm:hidden text-[9.5px] font-bold uppercase tracking-tighter leading-tight whitespace-nowrap ${
                             isCurrent
                               ? 'text-amber-300'
                               : isNext
@@ -410,7 +410,7 @@ export const PrayerTimesBlock: React.FC<PrayerTimesBlockProps> = ({
 
                       {/* Короткое русское название на смартфоне */}
                       <div
-                        className={`sm:hidden text-[8.5px] leading-tight whitespace-nowrap mb-0.5 ${
+                        className={`sm:hidden text-[9.5px] leading-tight whitespace-nowrap mb-1 ${
                           isCurrent ? 'text-emerald-100/90' : 'text-slate-500'
                         }`}
                       >
@@ -438,7 +438,7 @@ export const PrayerTimesBlock: React.FC<PrayerTimesBlockProps> = ({
 
                       {/* Время из таблицы */}
                       <div
-                        className={`font-mono tabular-nums text-[12.5px] sm:text-xl lg:text-3xl font-bold tracking-tight my-0.5 sm:my-1 ${
+                        className={`font-mono tabular-nums text-[14px] sm:text-xl lg:text-3xl font-extrabold sm:font-bold tracking-tighter sm:tracking-tight my-0.5 sm:my-1 whitespace-nowrap ${
                           isCurrent
                             ? 'text-[#fef3c7]'
                             : isNext
@@ -512,8 +512,8 @@ export const PrayerTimesBlock: React.FC<PrayerTimesBlockProps> = ({
             </div>
 
             {/* Секция 2: Счётчик Рамадан и полоска сколько дней осталось до Рамадана */}
-            <div className="pt-3 border-t border-white/15 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
-              <div className="space-y-1 w-full sm:flex-1 sm:max-w-md">
+            <div className="pt-3 border-t border-white/15">
+              <div className="space-y-1 w-full">
                 <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-emerald-200/80 font-medium">
                   <Moon className="w-3.5 h-3.5 text-amber-300 shrink-0" />
                   <span>
@@ -522,7 +522,7 @@ export const PrayerTimesBlock: React.FC<PrayerTimesBlockProps> = ({
                 </div>
                 <div className="text-sm sm:text-base font-bold text-[#fef3c7] flex flex-wrap items-center justify-between gap-2">
                   <span>До месяца Рамадан</span>
-                  <span className="text-xs font-medium text-amber-300/90 sm:hidden">
+                  <span className="text-xs sm:text-sm font-medium text-amber-300/90">
                     Ещё {ramadanStatus.daysRemaining} {ramadanStatus.dayWord}
                   </span>
                 </div>
@@ -531,24 +531,6 @@ export const PrayerTimesBlock: React.FC<PrayerTimesBlockProps> = ({
                     className="h-full bg-gradient-to-r from-emerald-400 via-amber-300 to-amber-200 rounded-full transition-all duration-700"
                     style={{ width: `${ramadanStatus.progressPercent}%` }}
                   />
-                </div>
-                <div className="flex items-center justify-between text-[10px] text-emerald-200/70 pt-0.5">
-                  <span>Прошло {ramadanStatus.progressPercent}% года</span>
-                  <span>
-                    Осталось {ramadanStatus.daysRemaining} {ramadanStatus.dayWord}
-                  </span>
-                </div>
-              </div>
-
-              <div className="text-left sm:text-right shrink-0">
-                <div className="text-[10px] uppercase tracking-widest text-amber-200/75 font-semibold">
-                  До Рамадана
-                </div>
-                <div className="font-mono tabular-nums text-2xl sm:text-3xl font-bold text-[#fef3c7] tracking-tight flex items-baseline gap-1.5">
-                  <span>{ramadanStatus.daysRemaining}</span>
-                  <span className="font-sans text-sm sm:text-base font-semibold text-amber-300">
-                    {ramadanStatus.dayWord}
-                  </span>
                 </div>
               </div>
             </div>
