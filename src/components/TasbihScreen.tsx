@@ -7,6 +7,8 @@ import {
   Volume2,
   VolumeX,
   Check,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { TASBIH_PRESETS, TasbihPreset } from '../data/spiritualPracticesData';
 import { PortalHeader, PortalSection } from './PortalHeader';
@@ -71,8 +73,12 @@ export const TasbihScreen: React.FC<TasbihScreenProps> = ({
   const [state, setState] = useState<TasbihPersistedState>(() => loadTasbihState());
   const [justCompletedRound, setJustCompletedRound] = useState<boolean>(false);
 
+  const activePresetIndex = Math.max(
+    0,
+    TASBIH_PRESETS.findIndex((p) => p.id === state.presetId)
+  );
   const activePreset: TasbihPreset =
-    TASBIH_PRESETS.find((p) => p.id === state.presetId) || TASBIH_PRESETS[0];
+    TASBIH_PRESETS[activePresetIndex] || TASBIH_PRESETS[0];
 
   const handleSelectPreset = (preset: TasbihPreset) => {
     setState((prev) => {
@@ -86,6 +92,17 @@ export const TasbihScreen: React.FC<TasbihScreenProps> = ({
       return next;
     });
     setJustCompletedRound(false);
+  };
+
+  const handlePrevPreset = () => {
+    const prevIdx =
+      (activePresetIndex - 1 + TASBIH_PRESETS.length) % TASBIH_PRESETS.length;
+    handleSelectPreset(TASBIH_PRESETS[prevIdx]);
+  };
+
+  const handleNextPreset = () => {
+    const nextIdx = (activePresetIndex + 1) % TASBIH_PRESETS.length;
+    handleSelectPreset(TASBIH_PRESETS[nextIdx]);
   };
 
   const handleSelectTarget = (target: number) => {
@@ -226,11 +243,11 @@ export const TasbihScreen: React.FC<TasbihScreenProps> = ({
                 })}
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 sm:gap-2 flex-nowrap w-full sm:w-auto">
                 <button
                   type="button"
                   onClick={toggleVibrate}
-                  className="px-3 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-xs font-medium text-slate-700 inline-flex items-center gap-1.5 transition cursor-pointer"
+                  className="px-2.5 sm:px-3 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-xs font-medium text-slate-700 inline-flex items-center gap-1.5 transition cursor-pointer shrink-0 whitespace-nowrap"
                   title="Переключить тактильный отклик"
                 >
                   {state.vibrate ? (
@@ -244,11 +261,31 @@ export const TasbihScreen: React.FC<TasbihScreenProps> = ({
                 <button
                   type="button"
                   onClick={handleResetCurrent}
-                  className="px-3 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-xs font-medium text-slate-700 inline-flex items-center gap-1.5 transition cursor-pointer"
+                  className="px-2.5 sm:px-3 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-xs font-medium text-slate-700 inline-flex items-center gap-1.5 transition cursor-pointer shrink-0 whitespace-nowrap"
                   title="Сбросить текущий счёт"
                 >
-                  <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
+                  <RotateCcw className="w-3.5 h-3.5 text-slate-500 shrink-0" />
                   <span>Сброс</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handlePrevPreset}
+                  className="px-2.5 sm:px-3 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-xs font-medium text-slate-700 inline-flex items-center gap-1 transition cursor-pointer shrink-0 whitespace-nowrap"
+                  title="Предыдущая формула поминания Аллаха"
+                >
+                  <ChevronLeft className="w-3.5 h-3.5 text-[#06392c] shrink-0" />
+                  <span>Ранее</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleNextPreset}
+                  className="px-2.5 sm:px-3 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-xs font-medium text-slate-700 inline-flex items-center gap-1 transition cursor-pointer shrink-0 whitespace-nowrap"
+                  title="Следующая формула поминания Аллаха"
+                >
+                  <span>Далее</span>
+                  <ChevronRight className="w-3.5 h-3.5 text-[#06392c] shrink-0" />
                 </button>
               </div>
             </div>
@@ -260,7 +297,7 @@ export const TasbihScreen: React.FC<TasbihScreenProps> = ({
               </div>
               <p
                 dir="rtl"
-                className="font-arabic text-2xl sm:text-3xl leading-[1.9] text-[#06392c] mb-2"
+                className="font-arabic text-2xl sm:text-3xl leading-[2.2] text-[#06392c] mb-2"
               >
                 {activePreset.arabic}
               </p>
