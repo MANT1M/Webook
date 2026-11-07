@@ -253,6 +253,97 @@ export const PrayerTimesBlock: React.FC<PrayerTimesBlockProps> = ({
             </div>
           </div>
 
+          {/* Переключение дней таблицы — между датой и временем намаза */}
+          <div className="flex items-center gap-1.5 sm:gap-2 w-full sm:w-auto min-w-0">
+            <button
+              type="button"
+              onClick={() =>
+                handleSelectDayIndex(
+                  selectedRowIndex > 0
+                    ? selectedRowIndex - 1
+                    : PRAYER_SCHEDULE_TABLE.length - 1
+                )
+              }
+              className="p-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 text-emerald-100 transition cursor-pointer shrink-0"
+              title="Предыдущий день таблицы"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+
+            <div className="flex-1 sm:flex-initial min-w-0 flex items-center gap-1.5 sm:gap-2 bg-white/10 border border-white/20 rounded-xl px-2.5 sm:px-3 py-1.5">
+              <Calendar className="w-3.5 h-3.5 text-amber-300 shrink-0" />
+              <label htmlFor="prayer-table-date-select" className="sr-only">
+                Выберите дату из расписания
+              </label>
+              <select
+                id="prayer-table-date-select"
+                value={selectedRowIndex}
+                onChange={(e) => handleSelectDayIndex(Number(e.target.value))}
+                className="w-full min-w-0 truncate bg-transparent text-xs sm:text-sm font-semibold text-white focus:outline-none cursor-pointer"
+              >
+                <optgroup
+                  label="Таблица 1: 12 октября — 9 ноября (Һиҗри 1–29)"
+                  className="bg-[#04271e] text-amber-300"
+                >
+                  {PRAYER_SCHEDULE_TABLE.map((row, idx) =>
+                    row.periodId === 'oct_nov' ? (
+                      <option
+                        key={`oct_nov_${row.hijriDay}`}
+                        value={idx}
+                        className="bg-[#06392c] text-white"
+                      >
+                        {row.miladiLabel} · {row.weekdayTt} ({row.weekdayRu}) ·
+                        Һиҗри {row.hijriDay}
+                      </option>
+                    ) : null
+                  )}
+                </optgroup>
+                <optgroup
+                  label="Таблица 2: 10 ноября — 9 декабря (Һиҗри 1–30)"
+                  className="bg-[#04271e] text-amber-300"
+                >
+                  {PRAYER_SCHEDULE_TABLE.map((row, idx) =>
+                    row.periodId === 'nov_dec' ? (
+                      <option
+                        key={`nov_dec_${row.hijriDay}`}
+                        value={idx}
+                        className="bg-[#06392c] text-white"
+                      >
+                        {row.miladiLabel} · {row.weekdayTt} ({row.weekdayRu}) ·
+                        Һиҗри {row.hijriDay}
+                      </option>
+                    ) : null
+                  )}
+                </optgroup>
+              </select>
+            </div>
+
+            <button
+              type="button"
+              onClick={() =>
+                handleSelectDayIndex(
+                  selectedRowIndex < PRAYER_SCHEDULE_TABLE.length - 1
+                    ? selectedRowIndex + 1
+                    : 0
+                )
+              }
+              className="p-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 text-emerald-100 transition cursor-pointer shrink-0"
+              title="Следующий день таблицы"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+
+            {!isViewingToday && (
+              <button
+                type="button"
+                onClick={() => handleSelectDayIndex(todayRowIndex)}
+                className="px-2.5 sm:px-3 py-1.5 rounded-xl bg-[#fef3c7] text-[#06392c] hover:bg-amber-200 text-xs font-bold transition cursor-pointer shrink-0 whitespace-nowrap"
+              >
+                Сегодня
+              </button>
+            )}
+          </div>
+
           {/* КАРТОЧКИ 6 ВРЕМЁН ВЫБРАННОГО ДНЯ ИЗ ТАБЛИЦЫ (ВМЕСТО ТЕКСТОВОЙ СТРОКИ, В ОДНУ СТРОКУ НА СМАРТФОНЕ И ПК) */}
           <div className="p-1.5 sm:p-3.5 lg:p-4 rounded-2xl bg-[#faf9f6] shadow-sm">
             <div className="grid grid-cols-6 gap-1 sm:gap-2.5 lg:gap-4">
@@ -464,99 +555,8 @@ export const PrayerTimesBlock: React.FC<PrayerTimesBlockProps> = ({
           </div>
         </div>
 
-        {/* ПАНЕЛЬ НАВИГАЦИИ ПО ДАТАМ И ПЕРИОДАМ (12 ОКТ — 9 ДЕК) */}
-        <div className="relative z-10 mt-4 sm:mt-5 pt-3.5 sm:pt-4 border-t border-white/15 flex flex-col sm:flex-row sm:flex-wrap sm:items-center justify-between gap-2.5 sm:gap-3">
-          {/* Переключение дней таблицы — стрелки и выбор даты строго в одну строку */}
-          <div className="flex items-center gap-1.5 sm:gap-2 w-full sm:w-auto min-w-0">
-            <button
-              type="button"
-              onClick={() =>
-                handleSelectDayIndex(
-                  selectedRowIndex > 0
-                    ? selectedRowIndex - 1
-                    : PRAYER_SCHEDULE_TABLE.length - 1
-                )
-              }
-              className="p-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 text-emerald-100 transition cursor-pointer shrink-0"
-              title="Предыдущий день таблицы"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-
-            <div className="flex-1 sm:flex-initial min-w-0 flex items-center gap-1.5 sm:gap-2 bg-white/10 border border-white/20 rounded-xl px-2.5 sm:px-3 py-1.5">
-              <Calendar className="w-3.5 h-3.5 text-amber-300 shrink-0" />
-              <label htmlFor="prayer-table-date-select" className="sr-only">
-                Выберите дату из расписания
-              </label>
-              <select
-                id="prayer-table-date-select"
-                value={selectedRowIndex}
-                onChange={(e) => handleSelectDayIndex(Number(e.target.value))}
-                className="w-full min-w-0 truncate bg-transparent text-xs sm:text-sm font-semibold text-white focus:outline-none cursor-pointer"
-              >
-                <optgroup
-                  label="Таблица 1: 12 октября — 9 ноября (Һиҗри 1–29)"
-                  className="bg-[#04271e] text-amber-300"
-                >
-                  {PRAYER_SCHEDULE_TABLE.map((row, idx) =>
-                    row.periodId === 'oct_nov' ? (
-                      <option
-                        key={`oct_nov_${row.hijriDay}`}
-                        value={idx}
-                        className="bg-[#06392c] text-white"
-                      >
-                        {row.miladiLabel} · {row.weekdayTt} ({row.weekdayRu}) ·
-                        Һиҗри {row.hijriDay}
-                      </option>
-                    ) : null
-                  )}
-                </optgroup>
-                <optgroup
-                  label="Таблица 2: 10 ноября — 9 декабря (Һиҗри 1–30)"
-                  className="bg-[#04271e] text-amber-300"
-                >
-                  {PRAYER_SCHEDULE_TABLE.map((row, idx) =>
-                    row.periodId === 'nov_dec' ? (
-                      <option
-                        key={`nov_dec_${row.hijriDay}`}
-                        value={idx}
-                        className="bg-[#06392c] text-white"
-                      >
-                        {row.miladiLabel} · {row.weekdayTt} ({row.weekdayRu}) ·
-                        Һиҗри {row.hijriDay}
-                      </option>
-                    ) : null
-                  )}
-                </optgroup>
-              </select>
-            </div>
-
-            <button
-              type="button"
-              onClick={() =>
-                handleSelectDayIndex(
-                  selectedRowIndex < PRAYER_SCHEDULE_TABLE.length - 1
-                    ? selectedRowIndex + 1
-                    : 0
-                )
-              }
-              className="p-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 text-emerald-100 transition cursor-pointer shrink-0"
-              title="Следующий день таблицы"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
-
-            {!isViewingToday && (
-              <button
-                type="button"
-                onClick={() => handleSelectDayIndex(todayRowIndex)}
-                className="px-2.5 sm:px-3 py-1.5 rounded-xl bg-[#fef3c7] text-[#06392c] hover:bg-amber-200 text-xs font-bold transition cursor-pointer shrink-0 whitespace-nowrap"
-              >
-                Сегодня
-              </button>
-            )}
-          </div>
-
+        {/* ПАНЕЛЬ УПРАВЛЕНИЕ ТАБЛИЦЕЙ И ОРИГИНАЛАМИ */}
+        <div className="relative z-10 mt-4 sm:mt-5 pt-3.5 sm:pt-4 border-t border-white/15 flex flex-wrap items-center justify-end gap-2">
           {/* Кнопки управления таблицей и оригиналами */}
           <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
             <button

@@ -655,8 +655,12 @@ export function useVisitCounter(): VisitStats {
     let lastUiUpdate = 0;
 
     const handleUserActivity = (event: Event) => {
-      const target = event.target as HTMLElement | null;
-      if (target && target.closest('[data-ignore-activity="true"]')) {
+      const target = event.target as Element | null;
+      if (
+        target &&
+        typeof target.closest === 'function' &&
+        target.closest('[data-ignore-activity="true"]')
+      ) {
         return;
       }
 
