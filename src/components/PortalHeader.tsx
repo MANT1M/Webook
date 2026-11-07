@@ -6,14 +6,12 @@ import {
   Compass,
   Home,
   User,
-  Download,
   Smartphone,
 } from 'lucide-react';
 import { useVisitCounter } from '../hooks/useVisitCounter';
 import { useAuthUser } from '../hooks/useAuthUser';
 import { VisitorCounterBadge } from './VisitorCounterBadge';
 import { AuthModal } from './AuthModal';
-import { AmveraFilesModal } from './AmveraFilesModal';
 import { IphoneVideoGuideModal } from './IphoneVideoGuideModal';
 
 export type PortalSection = 'home' | 'library' | 'dua' | 'adhkar' | 'tasbih';
@@ -43,7 +41,6 @@ export const PortalHeader: React.FC<PortalHeaderProps> = ({
   const visitStats = useVisitCounter();
   const { userName: currentUser } = useAuthUser();
   const [authModalOpen, setAuthModalOpen] = useState(false);
-  const [amveraModalOpen, setAmveraModalOpen] = useState(false);
   const [iphoneGuideOpen, setIphoneGuideOpen] = useState(false);
 
   return (
@@ -107,7 +104,7 @@ export const PortalHeader: React.FC<PortalHeaderProps> = ({
               })}
             </nav>
 
-            {/* Правая часть: счетчик визитов, На экран iPhone, Войти и Файлы */}
+            {/* Правая часть: счетчик визитов, На экран iPhone и Войти */}
             <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
               <VisitorCounterBadge stats={visitStats} variant="header" />
 
@@ -132,27 +129,18 @@ export const PortalHeader: React.FC<PortalHeaderProps> = ({
                   {currentUser ? currentUser : 'Войти'}
                 </span>
               </button>
-
-              <button
-                type="button"
-                onClick={() => setAmveraModalOpen(true)}
-                title="Файлы и сборка приложения"
-                className="border border-[#fef3c7]/30 hover:border-[#fef3c7]/60 bg-transparent hover:bg-white/10 text-[#fef3c7] rounded-lg px-2.5 sm:px-3 py-1.5 text-xs font-medium transition cursor-pointer flex items-center gap-1.5"
-              >
-                <Download className="w-3.5 h-3.5 text-amber-300" />
-                <span className="hidden sm:inline">Файлы</span>
-              </button>
             </div>
           </div>
 
           {/* Нижний ряд навигации для мобильных и планшетов */}
           <nav
             aria-label="Мобильная навигация"
-            className="flex lg:hidden items-center gap-1.5 overflow-x-auto pb-2.5 pt-0.5 border-t border-white/10"
+            className="grid grid-cols-4 sm:flex lg:hidden items-center gap-1.5 pb-2.5 pt-1 border-t border-white/10"
           >
             {NAV_ITEMS.map((item) => {
               const Icon = item.icon;
               const isActive = activeSection === item.id;
+              const isLibrary = item.id === 'library';
               return (
                 <button
                   key={item.id}
@@ -161,14 +149,16 @@ export const PortalHeader: React.FC<PortalHeaderProps> = ({
                     onSelectSection(item.id);
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                   }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shrink-0 cursor-pointer ${
+                  className={`${
+                    isLibrary ? 'col-span-4 sm:col-span-1' : 'col-span-1'
+                  } px-2 sm:px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-1.5 shrink-0 cursor-pointer whitespace-nowrap ${
                     isActive
                       ? 'bg-[#fef3c7] text-[#06392c] shadow-xs'
                       : 'bg-white/5 text-emerald-100/90 hover:bg-white/10'
                   }`}
                 >
                   <Icon
-                    className={`w-3.5 h-3.5 ${
+                    className={`w-3.5 h-3.5 shrink-0 ${
                       isActive ? 'text-[#06392c]' : 'text-amber-300'
                     }`}
                   />
@@ -183,11 +173,6 @@ export const PortalHeader: React.FC<PortalHeaderProps> = ({
       <IphoneVideoGuideModal
         isOpen={iphoneGuideOpen}
         onClose={() => setIphoneGuideOpen(false)}
-      />
-
-      <AmveraFilesModal
-        isOpen={amveraModalOpen}
-        onClose={() => setAmveraModalOpen(false)}
       />
 
       <AuthModal

@@ -351,7 +351,7 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
               </div>
             </div>
 
-            {/* Правая часть: счетчик визитов, Войти и Файлы */}
+            {/* Правая часть: счетчик визитов и Войти */}
             <div className="flex items-center gap-2 sm:gap-3 shrink-0">
               <VisitorCounterBadge stats={visitStats} variant="header" />
 
@@ -364,16 +364,6 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
                 <span className="truncate max-w-[120px] sm:max-w-none">
                   {currentUser ? currentUser : 'Войти'}
                 </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setAmveraModalOpen(true)}
-                title="Файлы и сборка приложения"
-                className="border border-[#fef3c7]/30 hover:border-[#fef3c7]/60 bg-transparent hover:bg-white/10 text-[#fef3c7] rounded-lg px-2.5 sm:px-3 py-1.5 text-xs sm:text-sm font-medium transition cursor-pointer flex items-center gap-1.5"
-              >
-                <Download className="w-3.5 h-3.5 text-amber-300" />
-                <span className="hidden sm:inline">Файлы</span>
               </button>
             </div>
           </div>
@@ -1113,7 +1103,7 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
               </h1>
             </div>
 
-            {/* Правая часть: счетчик визитов, кнопка «Войти / Регистрация» и кнопка «Файлы» */}
+            {/* Правая часть: счетчик визитов и кнопка «Войти / Регистрация» */}
             <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
               <VisitorCounterBadge stats={visitStats} variant="header" />
 
@@ -1125,17 +1115,6 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
               >
                 <User className="w-3.5 h-3.5 text-amber-300" />
                 <span>{currentUser ? currentUser : 'Войти / Регистрация'}</span>
-              </button>
-
-              {/* Кнопка Файлы с иконкой загрузки */}
-              <button
-                type="button"
-                onClick={() => setAmveraModalOpen(true)}
-                title="Файлы и сборка приложения"
-                className="border border-[#fef3c7]/30 hover:border-[#fef3c7]/60 bg-transparent hover:bg-white/10 text-[#fef3c7] rounded-lg px-3 sm:px-3.5 py-1.5 text-xs sm:text-sm font-medium transition cursor-pointer flex items-center gap-1.5"
-              >
-                <Download className="w-3.5 h-3.5 text-amber-300" />
-                <span>Файлы</span>
               </button>
             </div>
           </div>
