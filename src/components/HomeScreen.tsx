@@ -150,6 +150,63 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         {/* БЛОК «ВРЕМЯ НАМАЗА» */}
         <PrayerTimesBlock onSelectSection={onSelectSection} />
 
+        {/* ИЗБРАННАЯ МОЛЬБА ДНЯ (СРАЗУ ПОСЛЕ «ПОКАЗАТЬ РАСПИСАНИЕ») */}
+        <section className="bg-white rounded-3xl border border-slate-200/90 p-6 sm:p-8 shadow-2xs flex flex-col justify-between">
+          <div>
+            <div className="flex flex-wrap items-center justify-between gap-2 pb-4 border-b border-slate-100 mb-5">
+              <div>
+                <div className="text-xs uppercase tracking-widest text-emerald-800 font-semibold">
+                  Избранная мольба · {featuredDua.categoryLabel}
+                </div>
+                <h3 className="font-serif text-lg sm:text-xl font-bold text-slate-900 mt-0.5">
+                  {featuredDua.title}
+                </h3>
+              </div>
+              <span className="text-xs text-slate-400">{featuredDua.source}</span>
+            </div>
+
+            <div className="rounded-2xl bg-[#faf8f2] border border-[#e8e2d2] px-5 py-6 mb-4">
+              <p
+                dir="rtl"
+                className="font-arabic text-2xl sm:text-3xl leading-[2.0] text-right text-[#06392c]"
+              >
+                {featuredDua.arabic}
+              </p>
+            </div>
+
+            <p className="text-xs sm:text-sm text-slate-600 italic mb-2">
+              {featuredDua.transliteration}
+            </p>
+            <p className="font-serif text-sm sm:text-base text-slate-900 leading-relaxed mb-4">
+              «{featuredDua.translation}»
+            </p>
+          </div>
+
+          <div className="pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={() => onSelectSection('dua')}
+              className="bg-[#06392c] hover:opacity-95 text-[#fef3c7] text-xs font-semibold px-4 py-2.5 rounded-xl transition cursor-pointer inline-flex items-center gap-1.5"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+              <span>Все мольбы в разделе «Дуа»</span>
+            </button>
+
+            {featuredDua.bookChapterNumber && (
+              <button
+                type="button"
+                onClick={() =>
+                  onOpenEasyDeedsChapterNumber(featuredDua.bookChapterNumber!)
+                }
+                className="text-xs font-semibold text-[#06392c] hover:text-emerald-700 inline-flex items-center gap-1.5 cursor-pointer"
+              >
+                <BookOpen className="w-3.5 h-3.5" />
+                <span>Открыть главу {featuredDua.bookChapterNumber} в книге →</span>
+              </button>
+            )}
+          </div>
+        </section>
+
         {/* ГЛАВНЫЙ ПРИВЕТСТВЕННЫЙ БАННЕР */}
         <section className="relative rounded-3xl bg-[#06392c] text-white overflow-hidden shadow-lg border border-[#04271e]">
           <div
@@ -304,134 +361,74 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           </div>
         </section>
 
-        {/* НИЖНИЙ РЯД: ДУА ДНЯ ИЗ КНИГИ И БЫСТРЫЙ ДОСТУП К КНИГАМ БИБЛИОТЕКИ */}
-        <section className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-          {/* Карточка «Мольба дня из книги Простые благодеяния» (7 колонок) */}
-          <div className="lg:col-span-7 bg-white rounded-3xl border border-slate-200/90 p-6 sm:p-8 shadow-2xs flex flex-col justify-between">
-            <div>
-              <div className="flex flex-wrap items-center justify-between gap-2 pb-4 border-b border-slate-100 mb-5">
-                <div>
-                  <div className="text-xs uppercase tracking-widest text-emerald-800 font-semibold">
-                    Избранная мольба · {featuredDua.categoryLabel}
-                  </div>
-                  <h3 className="font-serif text-lg sm:text-xl font-bold text-slate-900 mt-0.5">
-                    {featuredDua.title}
-                  </h3>
+        {/* НИЖНИЙ РЯД: БЫСТРЫЙ ДОСТУП К КНИГАМ БИБЛИОТЕКИ */}
+        <section className="bg-white rounded-3xl border border-slate-200/90 p-6 sm:p-7 shadow-2xs flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between gap-2 pb-4 border-b border-slate-100 mb-4">
+              <div>
+                <div className="text-xs uppercase tracking-widest text-slate-500 font-semibold">
+                  Издания в каталоге
                 </div>
-                <span className="text-xs text-slate-400">{featuredDua.source}</span>
+                <h3 className="font-serif text-lg sm:text-xl font-bold text-slate-900 mt-0.5">
+                  Книги для чтения
+                </h3>
               </div>
-
-              <div className="rounded-2xl bg-[#faf8f2] border border-[#e8e2d2] px-5 py-6 mb-4">
-                <p
-                  dir="rtl"
-                  className="font-arabic text-2xl sm:text-3xl leading-[2.0] text-right text-[#06392c]"
-                >
-                  {featuredDua.arabic}
-                </p>
-              </div>
-
-              <p className="text-xs sm:text-sm text-slate-600 italic mb-2">
-                {featuredDua.transliteration}
-              </p>
-              <p className="font-serif text-sm sm:text-base text-slate-900 leading-relaxed mb-4">
-                «{featuredDua.translation}»
-              </p>
-            </div>
-
-            <div className="pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
-              <button
-                type="button"
-                onClick={() => onSelectSection('dua')}
-                className="bg-[#06392c] hover:opacity-95 text-[#fef3c7] text-xs font-semibold px-4 py-2.5 rounded-xl transition cursor-pointer inline-flex items-center gap-1.5"
-              >
-                <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-                <span>Все мольбы в разделе «Дуа»</span>
-              </button>
-
-              {featuredDua.bookChapterNumber && (
-                <button
-                  type="button"
-                  onClick={() =>
-                    onOpenEasyDeedsChapterNumber(featuredDua.bookChapterNumber!)
-                  }
-                  className="text-xs font-semibold text-[#06392c] hover:text-emerald-700 inline-flex items-center gap-1.5 cursor-pointer"
-                >
-                  <BookOpen className="w-3.5 h-3.5" />
-                  <span>Открыть главу {featuredDua.bookChapterNumber} в книге →</span>
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Быстрый доступ к книгам библиотеки (5 колонок) */}
-          <div className="lg:col-span-5 bg-white rounded-3xl border border-slate-200/90 p-6 sm:p-7 shadow-2xs flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between gap-2 pb-4 border-b border-slate-100 mb-4">
-                <div>
-                  <div className="text-xs uppercase tracking-widest text-slate-500 font-semibold">
-                    Издания в каталоге
-                  </div>
-                  <h3 className="font-serif text-lg sm:text-xl font-bold text-slate-900 mt-0.5">
-                    Книги для чтения
-                  </h3>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => onSelectSection('library')}
-                  className="text-xs font-semibold text-[#06392c] hover:underline cursor-pointer"
-                >
-                  Весь каталог →
-                </button>
-              </div>
-
-              <div className="space-y-3.5">
-                {CATALOG_BOOKS.map((catBook) => {
-                  const bookObj = INTERACTIVE_BOOKS_MAP[catBook.id];
-                  const chaptersCount = bookObj ? bookObj.chapters.length : 0;
-
-                  return (
-                    <div
-                      key={catBook.id}
-                      onClick={() => onOpenBookToc(catBook.id)}
-                      className="group p-3.5 rounded-2xl border border-slate-200/80 hover:border-[#06392c]/40 bg-slate-50/60 hover:bg-white transition flex items-center gap-3.5 cursor-pointer"
-                    >
-                      <div className="w-14 shrink-0 rounded-lg overflow-hidden shadow-xs border border-amber-300/30">
-                        <BookCoverRenderer
-                          coverType={catBook.coverType}
-                          title={catBook.title}
-                          author={catBook.author}
-                          coverImageUrl={catBook.coverImageUrl}
-                        />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="text-[11px] text-slate-500 truncate">
-                          {catBook.author}
-                        </div>
-                        <h4 className="font-serif font-bold text-sm text-slate-900 group-hover:text-[#06392c] line-clamp-2 leading-snug">
-                          {catBook.title}
-                        </h4>
-                        <div className="text-[11px] text-emerald-800 font-medium mt-1 flex items-center gap-1">
-                          <Layers className="w-3 h-3" />
-                          <span>Разделов: {chaptersCount} · Открыть оглавление</span>
-                        </div>
-                      </div>
-                      <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-[#06392c] shrink-0" />
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="pt-4 mt-4 border-t border-slate-100">
               <button
                 type="button"
                 onClick={() => onSelectSection('library')}
-                className="w-full py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200/80 text-slate-800 text-xs font-semibold transition cursor-pointer flex items-center justify-center gap-2"
+                className="text-xs font-semibold text-[#06392c] hover:underline cursor-pointer"
               >
-                <BookOpen className="w-4 h-4 text-[#06392c]" />
-                <span>Перейти в раздел «4. Библиотека»</span>
+                Весь каталог →
               </button>
             </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+              {CATALOG_BOOKS.map((catBook) => {
+                const bookObj = INTERACTIVE_BOOKS_MAP[catBook.id];
+                const chaptersCount = bookObj ? bookObj.chapters.length : 0;
+
+                return (
+                  <div
+                    key={catBook.id}
+                    onClick={() => onOpenBookToc(catBook.id)}
+                    className="group p-3.5 rounded-2xl border border-slate-200/80 hover:border-[#06392c]/40 bg-slate-50/60 hover:bg-white transition flex items-center gap-3.5 cursor-pointer"
+                  >
+                    <div className="w-14 shrink-0 rounded-lg overflow-hidden shadow-xs border border-amber-300/30">
+                      <BookCoverRenderer
+                        coverType={catBook.coverType}
+                        title={catBook.title}
+                        author={catBook.author}
+                        coverImageUrl={catBook.coverImageUrl}
+                      />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[11px] text-slate-500 truncate">
+                        {catBook.author}
+                      </div>
+                      <h4 className="font-serif font-bold text-sm text-slate-900 group-hover:text-[#06392c] line-clamp-2 leading-snug">
+                        {catBook.title}
+                      </h4>
+                      <div className="text-[11px] text-emerald-800 font-medium mt-1 flex items-center gap-1">
+                        <Layers className="w-3 h-3" />
+                        <span>Разделов: {chaptersCount} · Открыть оглавление</span>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-[#06392c] shrink-0" />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="pt-4 mt-4 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={() => onSelectSection('library')}
+              className="w-full py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200/80 text-slate-800 text-xs font-semibold transition cursor-pointer flex items-center justify-center gap-2"
+            >
+              <BookOpen className="w-4 h-4 text-[#06392c]" />
+              <span>Перейти в раздел «4. Библиотека»</span>
+            </button>
           </div>
         </section>
       </main>

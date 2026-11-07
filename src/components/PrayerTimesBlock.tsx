@@ -61,7 +61,7 @@ export const PrayerTimesBlock: React.FC<PrayerTimesBlockProps> = ({
   const [tableFilterPeriod, setTableFilterPeriod] = useState<
     PrayerPeriodId | 'all'
   >('oct_nov');
-  const [showFullTable, setShowFullTable] = useState<boolean>(true);
+  const [showFullTable, setShowFullTable] = useState<boolean>(false);
   const [showOriginalImage, setShowOriginalImage] = useState<boolean>(false);
 
   // Живой таймер каждую секунду
