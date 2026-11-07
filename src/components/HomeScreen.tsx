@@ -168,7 +168,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             <div className="rounded-2xl bg-[#faf8f2] border border-[#e8e2d2] px-5 py-6 mb-4">
               <p
                 dir="rtl"
-                className="font-arabic text-2xl sm:text-3xl leading-[2.0] text-right text-[#06392c]"
+                className="font-arabic text-2xl sm:text-3xl leading-[2.2] text-right text-[#06392c]"
               >
                 {featuredDua.arabic}
               </p>

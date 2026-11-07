@@ -86,9 +86,9 @@ export function paginate(
       // Только строки, реально содержащие арабский текст, увеличивают высоту строки
       let cost = 1.0;
       if (isPureArabic) {
-        cost = Math.max(1.2, arabicScale * 0.85);
-      } else if (hasArabic && arabicScale > 1.25) {
-        cost = Math.min(1.35, 1.0 + (arabicScale - 1) * 0.2);
+        cost = Math.max(1.4, arabicScale * 1.15);
+      } else if (hasArabic && arabicScale > 1.2) {
+        cost = Math.min(1.5, 1.05 + (arabicScale - 1) * 0.25);
       }
 
       if (isLastLineOfParagraph && hasNewline) {

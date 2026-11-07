@@ -24,12 +24,18 @@ function renderArabicScaledSegment(
   segment: string,
   baseFontSize: number,
   arabicScale: number,
-  keyPrefix: string
+  keyPrefix: string,
+  isPureArabic = false
 ): React.ReactNode[] {
   if (!segment) return [];
 
   const parts = segment.split(ARABIC_WORD_TASHKEEL_RE);
   const scaledSize = `${(baseFontSize * arabicScale).toFixed(1)}px`;
+  const spanLineHeight = isPureArabic
+    ? 2.15
+    : arabicScale > 1.25
+      ? 1.95
+      : 1.75;
 
   return parts.map((part, idx) => {
     if (!part) return null;
@@ -40,7 +46,7 @@ function renderArabicScaledSegment(
           className="font-arabic"
           style={{
             fontSize: scaledSize,
-            lineHeight: 1.25,
+            lineHeight: spanLineHeight,
             display: 'inline',
           }}
         >
@@ -101,7 +107,8 @@ export function formatMixedArabicHtml(
             beforeText,
             baseFontSize,
             arabicScale,
-            `l${lineIdx}-p${lastIndex}`
+            `l${lineIdx}-p${lastIndex}`,
+            isPureArabic
           )
         );
       }
@@ -158,7 +165,8 @@ export function formatMixedArabicHtml(
             fullMatch,
             baseFontSize,
             arabicScale,
-            `l${lineIdx}-rawfn-${matchStart}`
+            `l${lineIdx}-rawfn-${matchStart}`,
+            isPureArabic
           )
         );
       }
@@ -173,7 +181,8 @@ export function formatMixedArabicHtml(
           remaining,
           baseFontSize,
           arabicScale,
-          `l${lineIdx}-end`
+          `l${lineIdx}-end`,
+          isPureArabic
         )
       );
     }
@@ -182,13 +191,13 @@ export function formatMixedArabicHtml(
 
     // Межстрочный интервал абзаца:
     // - Чисто русский абзац ВСЕГДА сохраняет фиксированный комфортный интервал 1.6
-    // - Только чисто арабский блок (аят, дуа) увеличивает интервал для огласовок (харакатов)
-    // - Смешанный текст со вставкой арабского слова получает минимальную коррекцию
+    // - Чисто арабский блок (аят, дуа) получает просторный интервал 2.15 от масштабированного размера, чтобы огласовки не наслаивались
+    // - Смешанный текст со вставкой арабского слова получает плавную коррекцию
     let paragraphLineHeight = '1.6';
     if (isPureArabic) {
-      paragraphLineHeight = `${Math.max(1.8, Math.min(2.4, arabicScale * 1.15)).toFixed(2)}`;
-    } else if (hasArabicInLine && arabicScale > 1.3) {
-      paragraphLineHeight = `${Math.min(1.75, 1.6 + (arabicScale - 1) * 0.12).toFixed(2)}`;
+      paragraphLineHeight = '2.15';
+    } else if (hasArabicInLine && arabicScale > 1.2) {
+      paragraphLineHeight = `${Math.min(2.0, 1.65 + (arabicScale - 1) * 0.22).toFixed(2)}`;
     }
 
     return (
@@ -197,10 +206,10 @@ export function formatMixedArabicHtml(
         dir={isPureArabic ? 'rtl' : 'ltr'}
         style={{
           textAlign: isPureArabic ? 'right' : 'left',
-          margin: lines.length === 1 ? 0 : '0 0 0.65em 0',
+          margin: lines.length === 1 ? 0 : isPureArabic ? '0.35em 0 0.85em 0' : '0 0 0.65em 0',
           wordBreak: 'break-word',
           lineHeight: paragraphLineHeight,
-          ...(isPureArabic ? { padding: '4px 0' } : {}),
+          ...(isPureArabic ? { padding: '6px 0' } : {}),
         }}
       >
         {nodes}

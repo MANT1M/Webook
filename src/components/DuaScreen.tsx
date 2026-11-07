@@ -97,10 +97,10 @@ export const DuaScreen: React.FC<DuaScreenProps> = ({
 
   const arabicFontSizeClass =
     arabicScale === 'xlarge'
-      ? 'text-3xl sm:text-4xl leading-[2.1]'
+      ? 'text-3xl sm:text-4xl leading-[2.3]'
       : arabicScale === 'large'
-      ? 'text-2xl sm:text-3xl leading-[2.0]'
-      : 'text-xl sm:text-2xl leading-[1.9]';
+      ? 'text-2xl sm:text-3xl leading-[2.2]'
+      : 'text-xl sm:text-2xl leading-[2.1]';
 
   return (
     <div className="min-h-screen bg-[#faf9f6] text-[#1c1b1f] flex flex-col">
