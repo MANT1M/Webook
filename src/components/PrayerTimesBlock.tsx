@@ -691,10 +691,11 @@ export const PrayerTimesBlock: React.FC<PrayerTimesBlockProps> = ({
               </span>
             </button>
 
+            {/* Кнопка оригиналов таблиц временно скрыта (не удалена) */}
             <button
               type="button"
               onClick={() => setShowOriginalImage((prev) => !prev)}
-              className="flex-1 sm:flex-initial justify-center flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 text-emerald-100 transition cursor-pointer whitespace-nowrap"
+              className="hidden flex-1 sm:flex-initial justify-center items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 text-emerald-100 transition cursor-pointer whitespace-nowrap"
             >
               <ImageIcon className="w-3.5 h-3.5 text-amber-300 shrink-0" />
               <span>
