@@ -104,7 +104,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   : 'Войти в библиотеку'}
             </h3>
             <p className="text-xs text-emerald-200/80 mt-0.5">
-              Библиотека благодеяний
+              Благие дела
             </p>
           </div>
           <button

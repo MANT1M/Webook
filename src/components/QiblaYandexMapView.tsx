@@ -25,7 +25,7 @@ export interface QiblaYandexMapViewProps {
   isLocatingGps: boolean;
 }
 
-type MapTileMode = 'yandex_map' | 'yandex_hybrid' | 'osm_fallback';
+type MapTileMode = 'yandex_map' | 'yandex_hybrid';
 
 export const QiblaYandexMapView: React.FC<QiblaYandexMapViewProps> = ({
   lat,
@@ -38,11 +38,13 @@ export const QiblaYandexMapView: React.FC<QiblaYandexMapViewProps> = ({
 }) => {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
+  const tileLayerGroupRef = useRef<L.LayerGroup | null>(null);
   const userMarkerRef = useRef<L.Marker | null>(null);
   const overlaysGroupRef = useRef<L.LayerGroup | null>(null);
+  const onUpdatePinCoordsRef = useRef(onUpdatePinCoords);
+  onUpdatePinCoordsRef.current = onUpdatePinCoords;
 
   const [tileMode, setTileMode] = useState<MapTileMode>('yandex_map');
-  const [yandexTileErrorCount, setYandexTileErrorCount] = useState<number>(0);
 
   // Точки локального луча (точное направление начального азимута Киблы по сферической формуле)
   const localRayPoints = useMemo(() => {
@@ -64,75 +66,28 @@ export const QiblaYandexMapView: React.FC<QiblaYandexMapViewProps> = ({
     [lat, lon]
   );
 
-  // Пересоздание карты при переключении проекции (Яндекс EPSG:3395 vs Резерв EPSG:3857)
-  const isYandexProjection = tileMode !== 'osm_fallback';
-
+  // Инициализация карты один раз в эллиптической проекции Яндекс.Карт (EPSG:3395)
   useEffect(() => {
     const container = mapContainerRef.current;
     if (!container) return;
 
-    // Если карта уже инициализирована, удаляем перед сменой CRS
-    if (mapInstanceRef.current) {
-      mapInstanceRef.current.remove();
-      mapInstanceRef.current = null;
-      userMarkerRef.current = null;
-      overlaysGroupRef.current = null;
-    }
-
-    // Яндекс.Карты используют эллиптическую проекцию Меркатора WGS-84 (EPSG:3395)
-    const targetCrs = isYandexProjection ? L.CRS.EPSG3395 : L.CRS.EPSG3857;
-
     const map = L.map(container, {
-      crs: targetCrs,
+      crs: L.CRS.EPSG3395,
       center: [lat, lon],
       zoom: 16,
       minZoom: 2,
       maxZoom: 19,
       zoomControl: true,
-      attributionControl: true,
+      attributionControl: false,
     });
 
     mapInstanceRef.current = map;
 
-    // Подключаем выбранный слой тайлов
-    if (tileMode === 'yandex_map') {
-      const yandexScheme = L.tileLayer(
-        'https://core-renderer-tiles.maps.yandex.net/tiles?l=map&v=24.12.01-0&x={x}&y={y}&z={z}&scale=2&lang=ru_RU',
-        {
-          attribution: '© Яндекс.Карты',
-          maxZoom: 19,
-          Subdomains: ['01', '02', '03', '04'],
-        } as L.TileLayerOptions
-      );
-      yandexScheme.on('tileerror', () => {
-        setYandexTileErrorCount((c) => c + 1);
-      });
-      yandexScheme.addTo(map);
-    } else if (tileMode === 'yandex_hybrid') {
-      const yandexSat = L.tileLayer(
-        'https://core-sat.maps.yandex.net/tiles?l=sat&x={x}&y={y}&z={z}&lang=ru_RU',
-        {
-          attribution: '© Яндекс.Спутник',
-          maxZoom: 19,
-        }
-      );
-      const yandexLabels = L.tileLayer(
-        'https://core-renderer-tiles.maps.yandex.net/tiles?l=skl&x={x}&y={y}&z={z}&scale=2&lang=ru_RU',
-        {
-          attribution: '© Яндекс',
-          maxZoom: 19,
-        }
-      );
-      yandexSat.addTo(map);
-      yandexLabels.addTo(map);
-    } else {
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap',
-        maxZoom: 19,
-      }).addTo(map);
-    }
+    // Отдельный слой для тайлов подложки (Схема / Спутник)
+    const tileGroup = L.layerGroup().addTo(map);
+    tileLayerGroupRef.current = tileGroup;
 
-    // Создаём слой для линий Киблы и маркера Каабы
+    // Отдельный слой для линий Киблы и маркера Каабы (всегда поверх тайлов)
     const overlays = L.layerGroup().addTo(map);
     overlaysGroupRef.current = overlays;
 
@@ -170,7 +125,7 @@ export const QiblaYandexMapView: React.FC<QiblaYandexMapViewProps> = ({
 
     marker.on('dragend', () => {
       const pos = marker.getLatLng();
-      onUpdatePinCoords(
+      onUpdatePinCoordsRef.current(
         Math.round(pos.lat * 1000000) / 1000000,
         Math.round(pos.lng * 1000000) / 1000000
       );
@@ -180,7 +135,7 @@ export const QiblaYandexMapView: React.FC<QiblaYandexMapViewProps> = ({
 
     // Клик в любое место карты переставляет метку дома
     map.on('click', (e: L.LeafletMouseEvent) => {
-      onUpdatePinCoords(
+      onUpdatePinCoordsRef.current(
         Math.round(e.latlng.lat * 1000000) / 1000000,
         Math.round(e.latlng.lng * 1000000) / 1000000
       );
@@ -195,19 +150,46 @@ export const QiblaYandexMapView: React.FC<QiblaYandexMapViewProps> = ({
       window.clearTimeout(resizeTimer);
       map.remove();
       mapInstanceRef.current = null;
+      tileLayerGroupRef.current = null;
       userMarkerRef.current = null;
       overlaysGroupRef.current = null;
     };
-  }, [tileMode, isYandexProjection]);
+  }, []);
 
-  // Автоматическое переключение на резервную карту, если Яндекс.Карты заблокированы сетью/VPN
+  // Переключение слоёв «Яндекс Схема» и «Яндекс Спутник» без пересоздания карты и без потери линии Киблы
   useEffect(() => {
-    if (yandexTileErrorCount >= 6 && tileMode !== 'osm_fallback') {
-      setTileMode('osm_fallback');
-    }
-  }, [yandexTileErrorCount, tileMode]);
+    const tileGroup = tileLayerGroupRef.current;
+    if (!tileGroup) return;
 
-  // Обновление положения маркера и перерисовка лучей Киблы при изменении координат
+    tileGroup.clearLayers();
+
+    if (tileMode === 'yandex_map') {
+      const yandexScheme = L.tileLayer(
+        'https://core-renderer-tiles.maps.yandex.net/tiles?l=map&v=24.12.01-0&x={x}&y={y}&z={z}&scale=2&lang=ru_RU',
+        {
+          maxZoom: 19,
+        }
+      );
+      yandexScheme.addTo(tileGroup);
+    } else {
+      const yandexSat = L.tileLayer(
+        'https://core-sat.maps.yandex.net/tiles?l=sat&x={x}&y={y}&z={z}&lang=ru_RU',
+        {
+          maxZoom: 19,
+        }
+      );
+      const yandexLabels = L.tileLayer(
+        'https://core-renderer-tiles.maps.yandex.net/tiles?l=skl&x={x}&y={y}&z={z}&scale=2&lang=ru_RU',
+        {
+          maxZoom: 19,
+        }
+      );
+      yandexSat.addTo(tileGroup);
+      yandexLabels.addTo(tileGroup);
+    }
+  }, [tileMode]);
+
+  // Обновление положения маркера и перерисовка лучей Киблы при изменении координат или режима карты
   useEffect(() => {
     const map = mapInstanceRef.current;
     const marker = userMarkerRef.current;
@@ -218,15 +200,15 @@ export const QiblaYandexMapView: React.FC<QiblaYandexMapViewProps> = ({
     overlays.clearLayers();
 
     // 1. Полная геодезическая дуга (ортодромия) до Досточтимой Каабы в Мекке
-    L.polyline(geodesicArcPoints, {
-      color: '#06392c',
+    const arcLine = L.polyline(geodesicArcPoints, {
+      color: tileMode === 'yandex_hybrid' ? '#fef3c7' : '#06392c',
       weight: 3,
-      opacity: 0.65,
+      opacity: 0.75,
       dashArray: '8, 6',
     }).addTo(overlays);
 
     // 2. Яркий локальный луч точного начального азимута Киблы (25 км) поверх домов и кварталов
-    L.polyline(
+    const glowLine = L.polyline(
       [
         [lat, lon],
         localRayPoints.p150m,
@@ -235,13 +217,13 @@ export const QiblaYandexMapView: React.FC<QiblaYandexMapViewProps> = ({
         localRayPoints.p25km,
       ],
       {
-        color: '#d97706',
-        weight: 6,
-        opacity: 0.35,
+        color: '#fbbf24',
+        weight: 7,
+        opacity: 0.45,
       }
     ).addTo(overlays);
 
-    L.polyline(
+    const mainRayLine = L.polyline(
       [
         [lat, lon],
         localRayPoints.p150m,
@@ -251,10 +233,14 @@ export const QiblaYandexMapView: React.FC<QiblaYandexMapViewProps> = ({
       ],
       {
         color: '#10b981',
-        weight: 3.5,
-        opacity: 0.95,
+        weight: 4,
+        opacity: 0.98,
       }
     ).addTo(overlays);
+
+    arcLine.bringToFront();
+    glowLine.bringToFront();
+    mainRayLine.bringToFront();
 
     // 3. Метка Досточтимой Каабы в Мекке
     const kaabaIcon = L.divIcon({
@@ -291,7 +277,7 @@ export const QiblaYandexMapView: React.FC<QiblaYandexMapViewProps> = ({
         `<strong>Досточтимая Кааба (Мекка)</strong><br/>Азимут из выбранной точки: <strong>${qibla.azimuthDeg.toFixed(1)}° (${qibla.cardinalShortRu})</strong><br/>Расстояние: <strong>${qibla.distanceKm.toLocaleString('ru-RU')} км</strong>`
       )
       .addTo(overlays);
-  }, [lat, lon, qibla, localRayPoints, geodesicArcPoints]);
+  }, [lat, lon, qibla, localRayPoints, geodesicArcPoints, tileMode]);
 
   // Кнопка «К моему дому (масштаб двора)»
   const handleFocusUserHome = () => {
@@ -345,16 +331,13 @@ export const QiblaYandexMapView: React.FC<QiblaYandexMapViewProps> = ({
           </button>
         </div>
 
-        {/* Переключатель слоёв Яндекс.Карт */}
+        {/* Переключатель слоёв Яндекс.Карт: только Яндекс Схема и Яндекс Спутник */}
         <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
           <Layers className="w-3.5 h-3.5 text-slate-500 ml-1.5 hidden sm:inline shrink-0" />
           <button
             type="button"
-            onClick={() => {
-              setYandexTileErrorCount(0);
-              setTileMode('yandex_map');
-            }}
-            className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition cursor-pointer whitespace-nowrap ${
+            onClick={() => setTileMode('yandex_map')}
+            className={`px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer whitespace-nowrap ${
               tileMode === 'yandex_map'
                 ? 'bg-[#06392c] text-[#fef3c7] shadow-xs'
                 : 'text-slate-700 hover:text-slate-900'
@@ -364,29 +347,14 @@ export const QiblaYandexMapView: React.FC<QiblaYandexMapViewProps> = ({
           </button>
           <button
             type="button"
-            onClick={() => {
-              setYandexTileErrorCount(0);
-              setTileMode('yandex_hybrid');
-            }}
-            className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition cursor-pointer whitespace-nowrap ${
+            onClick={() => setTileMode('yandex_hybrid')}
+            className={`px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer whitespace-nowrap ${
               tileMode === 'yandex_hybrid'
                 ? 'bg-[#06392c] text-[#fef3c7] shadow-xs'
                 : 'text-slate-700 hover:text-slate-900'
             }`}
           >
             Яндекс Спутник
-          </button>
-          <button
-            type="button"
-            onClick={() => setTileMode('osm_fallback')}
-            className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition cursor-pointer whitespace-nowrap ${
-              tileMode === 'osm_fallback'
-                ? 'bg-[#06392c] text-[#fef3c7] shadow-xs'
-                : 'text-slate-700 hover:text-slate-900'
-            }`}
-            title="Резервная схема домов (если включён зарубежный VPN)"
-          >
-            Схема 2
           </button>
         </div>
       </div>
@@ -403,7 +371,7 @@ export const QiblaYandexMapView: React.FC<QiblaYandexMapViewProps> = ({
           <div className="flex items-center gap-2">
             <MapPin className="w-4 h-4 text-[#06392c] shrink-0" />
             <span>
-              <strong>Как проверить по дому:</strong> нажмите на свой дом (или перетащите круглую метку <strong>⌂</strong> на своё окно). Изумрудный луч со стрелками показывает точное направление на Каабу (<strong>{qibla.azimuthDeg.toFixed(1)}° {qibla.cardinalShortRu}</strong>).
+              <strong>Как проверить по дому:</strong> нажмите на свой дом (или перетащите круглую метку <strong>⌂</strong> на своё окно). Изумрудный луч показывает точное направление на Каабу (<strong>{qibla.azimuthDeg.toFixed(1)}° {qibla.cardinalShortRu}</strong>).
             </span>
           </div>
           <span className="font-mono text-[11px] text-slate-500 shrink-0">

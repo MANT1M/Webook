@@ -41,8 +41,8 @@ const VIDEO_STEPS: VideoStep[] = [
     id: 0,
     title: '1. Откройте сайт в браузере Safari',
     shortLabel: '1. Safari',
-    subtitle: 'Шаг 1 из 5 · Откройте «Библиотеку благодеяний» в стандартном браузере Safari на вашем iPhone',
-    voiceText: 'Шаг первый. Откройте сайт Библиотека благодеяний в браузере Сафари на вашем Айфоне.',
+    subtitle: 'Шаг 1 из 5 · Откройте «Благие дела» в стандартном браузере Safari на вашем iPhone',
+    voiceText: 'Шаг первый. Откройте сайт Благие дела в браузере Сафари на вашем Айфоне.',
     startSec: 0,
     endSec: 4,
   },
@@ -383,7 +383,7 @@ export const IphoneVideoGuideModal: React.FC<IphoneVideoGuideModalProps> = ({
                                   <BookOpen className="w-3 h-3 text-[#fef3c7]" />
                                 </div>
                                 <span className="font-serif text-[11px] font-bold text-[#fef3c7]">
-                                  Библиотека благодеяний
+                                  Благие дела
                                 </span>
                               </div>
                             </div>
@@ -411,7 +411,7 @@ export const IphoneVideoGuideModal: React.FC<IphoneVideoGuideModalProps> = ({
 
                               <div className="rounded-xl bg-[#06392c] p-2.5 text-center text-white">
                                 <div className="font-serif text-xs font-bold text-[#fef3c7]">
-                                  Библиотека благодеяний
+                                  Благие дела
                                 </div>
                                 <div className="text-[8px] text-emerald-100/80 mt-0.5">
                                   1. Тасбих · 2. Дуа · 3. Азкары · 4. Книги
@@ -481,7 +481,7 @@ export const IphoneVideoGuideModal: React.FC<IphoneVideoGuideModalProps> = ({
                                 </div>
                                 <div className="min-w-0 flex-1">
                                   <div className="text-[10px] font-bold text-slate-900 truncate">
-                                    Библиотека благодеяний
+                                    Благие дела
                                   </div>
                                   <div className="text-[8px] text-slate-500">Safari · Веб-сайт</div>
                                 </div>
@@ -549,7 +549,7 @@ export const IphoneVideoGuideModal: React.FC<IphoneVideoGuideModalProps> = ({
                               </div>
                               <div className="min-w-0 flex-1 space-y-1">
                                 <div className="text-xs font-bold text-slate-900 border-b border-slate-100 pb-1">
-                                  Библиотека благодеяний
+                                  Благие дела
                                 </div>
                                 <div className="text-[9px] text-slate-400 truncate">
                                   библиотека-благодеяний.рф
@@ -595,7 +595,7 @@ export const IphoneVideoGuideModal: React.FC<IphoneVideoGuideModalProps> = ({
                                   </span>
                                 </div>
                                 <span className="text-[8px] font-bold text-[#fef3c7] text-center leading-tight">
-                                  Благодеяния
+                                  Благие дела
                                 </span>
                               </div>
                             </div>

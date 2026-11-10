@@ -63,7 +63,7 @@ export const PortalHeader: React.FC<PortalHeaderProps> = ({
               </div>
               <div className="min-w-0">
                 <span className="block font-serif font-bold text-base sm:text-lg text-[#fef3c7] tracking-tight truncate leading-tight">
-                  Библиотека благодеяний
+                  Благие дела
                 </span>
                 <span className="hidden sm:block text-[11px] text-emerald-200/80 tracking-wide">
                   Тасбих · Дуа · Азкары · Книги

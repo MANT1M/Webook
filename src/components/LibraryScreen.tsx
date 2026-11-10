@@ -346,7 +346,7 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
               >
                 <BookOpen className="w-4 h-4 text-[#fef3c7] shrink-0" />
                 <h1 className="font-serif font-bold text-sm sm:text-base text-[#fef3c7] tracking-tight truncate hidden md:inline">
-                  Библиотека благодеяний
+                  Благие дела
                 </h1>
               </div>
             </div>
@@ -1050,7 +1050,7 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
               <div className="flex items-center gap-2">
                 <BookOpen className="w-4 h-4 text-[#06392c]" />
                 <span className="font-serif font-bold text-slate-800">
-                  Библиотека благодеяний
+                  Благие дела
                 </span>
                 <span>— электронная коллекция полезных книг</span>
               </div>
@@ -1099,7 +1099,7 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
             >
               <BookOpen className="w-5 h-5 text-[#fef3c7] transition-transform group-hover:scale-105 shrink-0" />
               <h1 className="font-serif font-bold text-base sm:text-lg lg:text-xl text-[#fef3c7] tracking-tight truncate">
-                Библиотека благодеяний
+                Благие дела
               </h1>
             </div>
 
@@ -1146,7 +1146,7 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
 
             {/* Короткая приветственная фраза на русском */}
             <p className="text-xs sm:text-sm md:text-base text-emerald-100/90 font-normal mb-6 sm:mb-8 leading-relaxed">
-              Приветственный мир для полезных книг Библиотека благодеяний.
+              Электронная библиотека полезных книг портала «Благие дела».
             </p>
 
             {/* Большая заметная поисковая строка с лупой и плейсхолдером */}
@@ -1365,7 +1365,7 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
             <div className="flex items-center gap-2">
               <BookOpen className="w-4 h-4 text-[#06392c]" />
               <span className="font-serif font-bold text-slate-800">
-                Библиотека благодеяний
+                Благие дела
               </span>
               <span>— электронная коллекция полезных книг</span>
             </div>

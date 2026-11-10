@@ -224,7 +224,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               Образовательный и духовный портал
             </div>
             <h1 className="font-serif text-2xl sm:text-4xl lg:text-[42px] font-bold text-[#fef3c7] leading-tight mb-2 sm:mb-3">
-              Библиотека благодеяний
+              Благие дела
             </h1>
             <p className="text-xs sm:text-sm md:text-base text-emerald-100/90 leading-relaxed mb-4 sm:mb-6">
               Чтение канонических книг, достоверные мольбы (дуа), ежедневные утренние
@@ -441,7 +441,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             <div className="flex items-center gap-2">
               <BookOpen className="w-4 h-4 text-[#06392c]" />
               <span className="font-serif font-bold text-slate-800">
-                Библиотека благодеяний
+                Благие дела
               </span>
               <span>— 1. Тасбих · 2. Дуа · 3. Азкары · 4. Библиотека</span>
             </div>
