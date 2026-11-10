@@ -11,6 +11,7 @@ import {
   Sunrise,
   Sunset,
   Image as ImageIcon,
+  Compass,
 } from 'lucide-react';
 import {
   PRAYER_SCHEDULE_TABLE,
@@ -22,6 +23,15 @@ import {
   findTodayRowIndex,
   getActiveAndNextPrayerFromRow,
 } from '../utils/prayerTimes';
+import {
+  QIBLA_CITY_PRESETS,
+  QiblaLocationState,
+  calculateQiblaFromCoords,
+  estimateMagneticDeclination,
+  loadSavedQiblaLocation,
+  saveQiblaLocation,
+} from '../utils/qiblaGeodesy';
+import { QiblaFinderPanel } from './QiblaFinderPanel';
 import { PortalSection } from './PortalHeader';
 
 export interface PrayerTimesBlockProps {
@@ -60,9 +70,109 @@ export const PrayerTimesBlock: React.FC<PrayerTimesBlockProps> = ({
   );
   const [tableFilterPeriod, setTableFilterPeriod] = useState<
     PrayerPeriodId | 'all'
-  >('oct_nov');
+  >(() => {
+    const initialRow = PRAYER_SCHEDULE_TABLE[findTodayRowIndex(new Date())];
+    return initialRow ? initialRow.periodId : 'oct_nov';
+  });
   const [showFullTable, setShowFullTable] = useState<boolean>(false);
   const [showOriginalImage, setShowOriginalImage] = useState<boolean>(false);
+  const [showQiblaPanel, setShowQiblaPanel] = useState<boolean>(false);
+
+  // Состояние локации для расчёта Киблы (по умолчанию — Уфа, 206.5° ЮЗ)
+  const [qiblaLocation, setQiblaLocation] = useState<QiblaLocationState>(() =>
+    loadSavedQiblaLocation()
+  );
+  const [isLocatingGps, setIsLocatingGps] = useState<boolean>(false);
+  const [gpsError, setGpsError] = useState<string | null>(null);
+
+  const qiblaResult = useMemo(
+    () =>
+      calculateQiblaFromCoords(
+        qiblaLocation.lat,
+        qiblaLocation.lon,
+        qiblaLocation.magneticDeclinationDeg
+      ),
+    [
+      qiblaLocation.lat,
+      qiblaLocation.lon,
+      qiblaLocation.magneticDeclinationDeg,
+    ]
+  );
+
+  const handleSelectQiblaCity = (cityId: string) => {
+    const found = QIBLA_CITY_PRESETS.find((c) => c.id === cityId);
+    if (!found) return;
+    setGpsError(null);
+    const nextState: QiblaLocationState = {
+      cityId: found.id,
+      labelRu: found.nameRu,
+      lat: found.lat,
+      lon: found.lon,
+      magneticDeclinationDeg: found.magneticDeclinationDeg,
+      source: 'preset',
+    };
+    setQiblaLocation(nextState);
+    saveQiblaLocation(nextState);
+  };
+
+  const handleUpdateQiblaPinCoords = (newLat: number, newLon: number) => {
+    setGpsError(null);
+    const nextState: QiblaLocationState = {
+      cityId: 'custom_pin',
+      labelRu: `Дом на карте (${newLat.toFixed(4)}°, ${newLon.toFixed(4)}°)`,
+      lat: newLat,
+      lon: newLon,
+      magneticDeclinationDeg: estimateMagneticDeclination(newLat, newLon),
+      source: 'map_pin',
+    };
+    setQiblaLocation(nextState);
+    saveQiblaLocation(nextState);
+  };
+
+  const handleRequestQiblaGps = () => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      setGpsError(
+        'Геолокация не поддерживается вашим браузером. Выберите город из списка или укажите свой дом на Яндекс.Карте.'
+      );
+      return;
+    }
+    setIsLocatingGps(true);
+    setGpsError(null);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setIsLocatingGps(false);
+        const lat = Math.round(pos.coords.latitude * 1000000) / 1000000;
+        const lon = Math.round(pos.coords.longitude * 1000000) / 1000000;
+        const nextState: QiblaLocationState = {
+          cityId: 'custom_gps',
+          labelRu: 'Моё местоположение (GPS)',
+          lat,
+          lon,
+          magneticDeclinationDeg: estimateMagneticDeclination(lat, lon),
+          source: 'gps',
+        };
+        setQiblaLocation(nextState);
+        saveQiblaLocation(nextState);
+      },
+      (err) => {
+        setIsLocatingGps(false);
+        if (err.code === err.PERMISSION_DENIED) {
+          setGpsError(
+            'Доступ к геопозиции запрещён в настройках браузера. Выберите город из списка или укажите свой дом кликом на Яндекс.Карте.'
+          );
+        } else {
+          setGpsError(
+            'Не удалось получить сигнал GPS. Проверьте геолокацию на телефоне или выберите свой дом на Яндекс.Карте.'
+          );
+        }
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 60000,
+      }
+    );
+  };
 
   // Живой таймер каждую секунду
   useEffect(() => {
@@ -136,8 +246,10 @@ export const PrayerTimesBlock: React.FC<PrayerTimesBlockProps> = ({
   // Счётчик дней и прогресс-полоска до священного месяца Рамадан
   const ramadanStatus = useMemo(() => {
     const refYear = now.getFullYear();
+    const effectiveYear =
+      activeRow.month === 1 && now.getMonth() >= 9 ? refYear + 1 : refYear;
     const currentDate = new Date(
-      refYear,
+      effectiveYear,
       activeRow.month - 1,
       activeRow.day,
       now.getHours(),
@@ -230,7 +342,7 @@ export const PrayerTimesBlock: React.FC<PrayerTimesBlockProps> = ({
           <div className="space-y-1.5">
             <div className="flex flex-wrap items-center gap-2 text-xs uppercase tracking-widest text-amber-300/90 font-semibold">
               <Clock className="w-3.5 h-3.5 text-amber-300" />
-              <span>Расписание намазов · 12 окт — 9 дек</span>
+              <span>Расписание намазов · 12 окт — 8 янв</span>
               {activeRow.isFriday && (
                 <span className="bg-emerald-500/30 border border-emerald-300/40 text-emerald-100 px-2 py-0.5 rounded-md text-[11px] font-bold tracking-normal normal-case">
                   Җомга · Пятница
@@ -306,6 +418,23 @@ export const PrayerTimesBlock: React.FC<PrayerTimesBlockProps> = ({
                     row.periodId === 'nov_dec' ? (
                       <option
                         key={`nov_dec_${row.hijriDay}`}
+                        value={idx}
+                        className="bg-[#06392c] text-white"
+                      >
+                        {row.miladiLabel} · {row.weekdayTt} ({row.weekdayRu}) ·
+                        Һиҗри {row.hijriDay}
+                      </option>
+                    ) : null
+                  )}
+                </optgroup>
+                <optgroup
+                  label="Таблица 3: 10 декабря — 8 января (Рәҗәб · Һиҗри 1–30)"
+                  className="bg-[#04271e] text-amber-300"
+                >
+                  {PRAYER_SCHEDULE_TABLE.map((row, idx) =>
+                    row.periodId === 'dec_jan' ? (
+                      <option
+                        key={`dec_jan_${row.hijriDay}`}
                         value={idx}
                         className="bg-[#06392c] text-white"
                       >
@@ -537,10 +666,31 @@ export const PrayerTimesBlock: React.FC<PrayerTimesBlockProps> = ({
           </div>
         </div>
 
-        {/* ПАНЕЛЬ УПРАВЛЕНИЕ ТАБЛИЦЕЙ И ОРИГИНАЛАМИ */}
+        {/* ПАНЕЛЬ УПРАВЛЕНИЯ КИБЛОЙ, ТАБЛИЦЕЙ И ОРИГИНАЛАМИ */}
         <div className="relative z-10 mt-4 sm:mt-5 pt-3.5 sm:pt-4 border-t border-white/15 flex flex-wrap items-center justify-end gap-2">
-          {/* Кнопки управления таблицей и оригиналами */}
+          {/* Кнопки управления Киблой, таблицей и оригиналами */}
           <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+            <button
+              type="button"
+              onClick={() => setShowQiblaPanel((prev) => !prev)}
+              className={`flex-1 sm:flex-initial justify-center flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl border transition cursor-pointer whitespace-nowrap ${
+                showQiblaPanel
+                  ? 'bg-[#fef3c7] text-[#06392c] border-amber-300 shadow-xs'
+                  : 'bg-white/10 hover:bg-white/20 border-white/15 text-emerald-100'
+              }`}
+            >
+              <Compass
+                className={`w-3.5 h-3.5 shrink-0 ${
+                  showQiblaPanel ? 'text-[#06392c]' : 'text-amber-300'
+                }`}
+              />
+              <span>
+                {showQiblaPanel
+                  ? 'Скрыть Киблу'
+                  : `Кибла · ${qiblaResult.azimuthDeg.toFixed(1)}° ${qiblaResult.cardinalShortRu}`}
+              </span>
+            </button>
+
             <button
               type="button"
               onClick={() => setShowOriginalImage((prev) => !prev)}
@@ -548,7 +698,7 @@ export const PrayerTimesBlock: React.FC<PrayerTimesBlockProps> = ({
             >
               <ImageIcon className="w-3.5 h-3.5 text-amber-300 shrink-0" />
               <span>
-                {showOriginalImage ? 'Скрыть сканы' : 'Оригиналы таблиц (2)'}
+                {showOriginalImage ? 'Скрыть сканы' : 'Оригиналы таблиц (3)'}
               </span>
             </button>
 
@@ -570,15 +720,36 @@ export const PrayerTimesBlock: React.FC<PrayerTimesBlockProps> = ({
         </div>
       </div>
 
-      {/* РАСКРЫВАЕМЫЕ РАЗДЕЛЫ: ОРИГИНАЛЫ ТАБЛИЦ И ПОЛНОЕ РАСПИСАНИЕ */}
-      {(showOriginalImage || showFullTable) && (
+      {/* РАСКРЫВАЕМЫЕ РАЗДЕЛЫ: КИБЛА, ОРИГИНАЛЫ ТАБЛИЦ И ПОЛНОЕ РАСПИСАНИЕ */}
+      {(showQiblaPanel || showOriginalImage || showFullTable) && (
         <div className="p-3 sm:p-6 lg:p-7 bg-[#faf9f6] space-y-5">
-          {/* ОРИГИНАЛЬНЫЕ ИЗОБРАЖЕНИЯ ОБЕИХ ТАБЛИЦ (ПО КНОПКЕ) */}
+          {/* ПАНЕЛЬ ОПРЕДЕЛЕНИЯ КИБЛЫ (КОМПАС + ЯНДЕКС.КАРТА С ДОМАМИ) */}
+          {showQiblaPanel && (
+            <div
+              className={
+                showOriginalImage || showFullTable
+                  ? 'pb-5 border-b border-slate-200'
+                  : ''
+              }
+            >
+              <QiblaFinderPanel
+                locationState={qiblaLocation}
+                qibla={qiblaResult}
+                onSelectPresetCity={handleSelectQiblaCity}
+                onRequestGps={handleRequestQiblaGps}
+                onUpdatePinCoords={handleUpdateQiblaPinCoords}
+                isLocatingGps={isLocatingGps}
+                gpsError={gpsError}
+                onClose={() => setShowQiblaPanel(false)}
+              />
+            </div>
+          )}
+          {/* ОРИГИНАЛЬНЫЕ ИЗОБРАЖЕНИЯ ТАБЛИЦ (ПО КНОПКЕ) */}
           {showOriginalImage && (
             <div>
               <div className="flex items-center justify-between mb-3">
                 <h3 className="font-serif text-base sm:text-lg font-bold text-slate-900">
-                  Оригиналы таблиц времени намаза (12 окт — 9 ноя и 10 ноя — 9 дек)
+                  Оригиналы таблиц времени намаза (12 окт — 8 янв)
                 </h3>
                 <button
                   type="button"
@@ -588,13 +759,13 @@ export const PrayerTimesBlock: React.FC<PrayerTimesBlockProps> = ({
                   Закрыть
                 </button>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {PRAYER_PERIODS.map((period) => (
                   <div
                     key={period.id}
                     className="rounded-2xl overflow-hidden border border-slate-200 bg-white p-3 flex flex-col items-center"
                   >
-                    <div className="text-xs font-bold text-[#06392c] mb-2">
+                    <div className="text-xs font-bold text-[#06392c] mb-2 text-center">
                       {period.title}
                     </div>
                     <img
@@ -649,7 +820,7 @@ export const PrayerTimesBlock: React.FC<PrayerTimesBlockProps> = ({
                       : 'text-slate-700 hover:text-slate-900 hover:bg-white/60'
                   }`}
                 >
-                  Все дни (59)
+                  Все дни ({PRAYER_SCHEDULE_TABLE.length})
                 </button>
               </div>
             </div>
@@ -763,6 +934,19 @@ export const PrayerTimesBlock: React.FC<PrayerTimesBlockProps> = ({
                 </tbody>
               </table>
             </div>
+
+            {(tableFilterPeriod === 'dec_jan' || tableFilterPeriod === 'all') && (
+              <div className="mt-3 rounded-xl border border-emerald-200/80 bg-white px-4 py-3 text-xs sm:text-sm text-slate-700 space-y-1 text-center font-serif">
+                <p>
+                  <strong className="text-red-700">1–2 рәҗәб</strong>, пәнҗешәмбе / җомга (10–11 декабрь) –{' '}
+                  <strong className="text-slate-900">Рәгаиб кичәсе</strong>. Пәйгамбәребез Мөхәммәд (с.г.с.)нең әтисе Габдуллаһ һәм әнисе Әминәнең никах кичәсе һәм көне.
+                </p>
+                <p>
+                  <strong className="text-red-700">26 рәҗәб</strong>, дүшәмбе (4 гыйнвар) – Рәсүлебез Мөхәммәд (с.г.с.)нең{' '}
+                  <strong className="text-slate-900">Мигъраҗ кичәсе</strong>.
+                </p>
+              </div>
+            )}
           </div>
         )}
         </div>
