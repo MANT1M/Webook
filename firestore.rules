@@ -29,6 +29,16 @@ service cloud.firestore {
         (!('deviceBreakdown' in data) || (data.deviceBreakdown is map && data.deviceBreakdown.size() <= 10));
     }
 
+    function isValidStatsIncrement() {
+      return incoming().totalVisits >= existing().totalVisits &&
+        incoming().totalVisits <= existing().totalVisits + 1 &&
+        (!('uniqueVisitors' in existing()) || (
+          'uniqueVisitors' in incoming() &&
+          incoming().uniqueVisitors >= existing().uniqueVisitors &&
+          incoming().uniqueVisitors <= existing().uniqueVisitors + 1
+        ));
+    }
+
     // Default deny catch-all
     match /{document=**} {
       allow read, write: if false;
@@ -38,11 +48,14 @@ service cloud.firestore {
     match /app_stats/{statsId} {
       allow get: if isValidId(statsId);
       allow list: if false;
-      allow create: if isValidId(statsId) && isValidStats(incoming());
+      allow create: if isValidId(statsId) &&
+                    isValidStats(incoming()) &&
+                    incoming().totalVisits == 1 &&
+                    (!('uniqueVisitors' in incoming()) || incoming().uniqueVisitors == 1);
       allow update: if isValidId(statsId) &&
                     isValidStats(incoming()) &&
                     incoming().diff(existing()).affectedKeys().hasOnly(['totalVisits', 'uniqueVisitors', 'lastUpdated', 'dailyDate', 'dailyUniqueVisitors', 'activeReaders', 'dailyHistory', 'deviceBreakdown']) &&
-                    incoming().totalVisits >= existing().totalVisits;
+                    isValidStatsIncrement();
       allow delete: if false;
     }
   }

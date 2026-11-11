@@ -21,35 +21,60 @@ export interface AuthUserState {
   logout: () => Promise<void>;
 }
 
-function readStoredAuth(): { userName: string | null; userEmail: string | null } {
+function isVerifiedFirebaseAdmin(): boolean {
+  const fbUser = auth.currentUser;
+  if (!fbUser || !fbUser.email || !fbUser.emailVerified) {
+    return false;
+  }
+  return fbUser.email.trim().toLowerCase() === ADMIN_STATS_EMAIL;
+}
+
+function readStoredAuth(): {
+  userName: string | null;
+  userEmail: string | null;
+  isVerifiedAdmin: boolean;
+} {
   try {
     const rawName = localStorage.getItem(STORAGE_USER_NAME_KEY);
     const rawEmail = localStorage.getItem(STORAGE_USER_EMAIL_KEY);
     const fbEmail = auth.currentUser?.email || null;
     const fbName = auth.currentUser?.displayName || null;
+    const verifiedAdmin = isVerifiedFirebaseAdmin();
 
-    const effectiveEmail = (fbEmail || rawEmail || '').trim().toLowerCase() || null;
-    // Если в старой сессии в library_user был сохранен email напрямую
+    // Если в localStorage записан email администратора без реальной сессии Google Auth — игнорируем его
+    const safeStoredEmail =
+      rawEmail && rawEmail.trim().toLowerCase() === ADMIN_STATS_EMAIL && !verifiedAdmin
+        ? null
+        : rawEmail;
+
+    const effectiveEmail =
+      (fbEmail || safeStoredEmail || '').trim().toLowerCase() || null;
+
     const fallbackEmailFromName =
-      !effectiveEmail && rawName && rawName.includes('@')
+      !effectiveEmail &&
+      rawName &&
+      rawName.includes('@') &&
+      rawName.trim().toLowerCase() !== ADMIN_STATS_EMAIL
         ? rawName.trim().toLowerCase()
         : null;
 
     const finalEmail = effectiveEmail || fallbackEmailFromName;
-    const finalName = fbName || rawName || (finalEmail ? finalEmail.split('@')[0] : null);
+    const finalName =
+      fbName || rawName || (finalEmail ? finalEmail.split('@')[0] : null);
 
     return {
       userName: finalName,
       userEmail: finalEmail,
+      isVerifiedAdmin: verifiedAdmin,
     };
   } catch {
-    return { userName: null, userEmail: null };
+    return { userName: null, userEmail: null, isVerifiedAdmin: false };
   }
 }
 
 export function isAdminStatsEmail(email: string | null | undefined): boolean {
   if (!email) return false;
-  return email.trim().toLowerCase() === ADMIN_STATS_EMAIL;
+  return email.trim().toLowerCase() === ADMIN_STATS_EMAIL && isVerifiedFirebaseAdmin();
 }
 
 function notifyAuthChange() {
@@ -62,6 +87,7 @@ export function useAuthUser(): AuthUserState {
   const [state, setState] = useState<{
     userName: string | null;
     userEmail: string | null;
+    isVerifiedAdmin: boolean;
   }>(() => readStoredAuth());
 
   useEffect(() => {
@@ -74,7 +100,9 @@ export function useAuthUser(): AuthUserState {
         try {
           const normalizedEmail = fbUser.email.trim().toLowerCase();
           const displayName =
-            fbUser.displayName?.trim() || normalizedEmail.split('@')[0] || 'Читатель';
+            fbUser.displayName?.trim() ||
+            normalizedEmail.split('@')[0] ||
+            'Читатель';
           localStorage.setItem(STORAGE_USER_NAME_KEY, displayName);
           localStorage.setItem(STORAGE_USER_EMAIL_KEY, normalizedEmail);
         } catch {
@@ -96,12 +124,15 @@ export function useAuthUser(): AuthUserState {
 
   const loginWithEmail = useCallback((name: string, email: string) => {
     const normalizedEmail = email.trim().toLowerCase();
+    // Запрещаем подмену email администратора через неавторизованную локальную форму
+    const safeEmail =
+      normalizedEmail === ADMIN_STATS_EMAIL ? '' : normalizedEmail;
     const finalName =
-      name.trim() || (normalizedEmail ? normalizedEmail.split('@')[0] : 'Читатель');
+      name.trim() || (safeEmail ? safeEmail.split('@')[0] : 'Читатель');
     try {
       localStorage.setItem(STORAGE_USER_NAME_KEY, finalName);
-      if (normalizedEmail) {
-        localStorage.setItem(STORAGE_USER_EMAIL_KEY, normalizedEmail);
+      if (safeEmail) {
+        localStorage.setItem(STORAGE_USER_EMAIL_KEY, safeEmail);
       } else {
         localStorage.removeItem(STORAGE_USER_EMAIL_KEY);
       }
@@ -110,7 +141,8 @@ export function useAuthUser(): AuthUserState {
     }
     setState({
       userName: finalName,
-      userEmail: normalizedEmail || null,
+      userEmail: safeEmail || null,
+      isVerifiedAdmin: isVerifiedFirebaseAdmin(),
     });
     notifyAuthChange();
   }, []);
@@ -135,6 +167,7 @@ export function useAuthUser(): AuthUserState {
     setState({
       userName: displayName,
       userEmail: normalizedEmail || null,
+      isVerifiedAdmin: isVerifiedFirebaseAdmin(),
     });
     notifyAuthChange();
 
@@ -153,16 +186,14 @@ export function useAuthUser(): AuthUserState {
     } catch {
       // ignore storage errors
     }
-    setState({ userName: null, userEmail: null });
+    setState({ userName: null, userEmail: null, isVerifiedAdmin: false });
     notifyAuthChange();
   }, []);
-
-  const isStatsAdmin = isAdminStatsEmail(state.userEmail);
 
   return {
     userName: state.userName,
     userEmail: state.userEmail,
-    isStatsAdmin,
+    isStatsAdmin: state.isVerifiedAdmin,
     loginWithEmail,
     loginWithGoogle,
     logout,
