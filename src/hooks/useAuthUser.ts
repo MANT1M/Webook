@@ -7,26 +7,51 @@ import {
 } from 'firebase/auth';
 import { auth } from '../lib/firebase';
 
-export const ADMIN_STATS_EMAIL = '1tim.manti777@gmail.com';
+// SHA-256 хэш почты администратора (почта в открытом виде в коде не хранится)
+export const ADMIN_EMAIL_SHA256 =
+  '712fbce72d059dc36d7d69a1c6ef9ae82b5a0f4e240cc9c94b49ea146cb6ce2f';
+
+// SHA-256 хэш связки "email:password" администратора (пароль в открытом виде в коде не хранится)
+const ADMIN_CREDENTIALS_SHA256 =
+  '3b9a6932377b8b8f1ba10abf665754c5f3f7a9312fc85d7d0239c4375d23d549';
+
 const STORAGE_USER_NAME_KEY = 'library_user';
 const STORAGE_USER_EMAIL_KEY = 'library_user_email';
+const STORAGE_ADMIN_TOKEN_KEY = 'library_admin_verified_hash';
 const AUTH_CHANGE_EVENT = 'library_auth_change';
 
 export interface AuthUserState {
   userName: string | null;
   userEmail: string | null;
   isStatsAdmin: boolean;
-  loginWithEmail: (name: string, email: string) => void;
+  loginWithEmail: (
+    name: string,
+    email: string,
+    password?: string
+  ) => Promise<{ ok: boolean; error?: string }>;
   loginWithGoogle: () => Promise<{ name: string; email: string }>;
   logout: () => Promise<void>;
 }
 
-function isVerifiedFirebaseAdmin(): boolean {
-  const fbUser = auth.currentUser;
-  if (!fbUser || !fbUser.email || !fbUser.emailVerified) {
-    return false;
+/**
+ * Вычисление SHA-256 хэша строки в браузере (с приведением к нижнему регистру для email)
+ */
+export async function sha256Hex(input: string): Promise<string> {
+  return sha256RawHex(input.trim().toLowerCase());
+}
+
+/**
+ * Вычисление SHA-256 хэша строки с сохранением регистра символов (для пароля)
+ */
+export async function sha256RawHex(input: string): Promise<string> {
+  if (typeof window !== 'undefined' && window.crypto?.subtle) {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(input);
+    const hashBuffer = await window.crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
   }
-  return fbUser.email.trim().toLowerCase() === ADMIN_STATS_EMAIL;
+  return '';
 }
 
 function readStoredAuth(): {
@@ -37,44 +62,28 @@ function readStoredAuth(): {
   try {
     const rawName = localStorage.getItem(STORAGE_USER_NAME_KEY);
     const rawEmail = localStorage.getItem(STORAGE_USER_EMAIL_KEY);
+    const storedAdminHash = localStorage.getItem(STORAGE_ADMIN_TOKEN_KEY);
     const fbEmail = auth.currentUser?.email || null;
     const fbName = auth.currentUser?.displayName || null;
-    const verifiedAdmin = isVerifiedFirebaseAdmin();
-
-    // Если в localStorage записан email администратора без реальной сессии Google Auth — игнорируем его
-    const safeStoredEmail =
-      rawEmail && rawEmail.trim().toLowerCase() === ADMIN_STATS_EMAIL && !verifiedAdmin
-        ? null
-        : rawEmail;
 
     const effectiveEmail =
-      (fbEmail || safeStoredEmail || '').trim().toLowerCase() || null;
-
-    const fallbackEmailFromName =
-      !effectiveEmail &&
-      rawName &&
-      rawName.includes('@') &&
-      rawName.trim().toLowerCase() !== ADMIN_STATS_EMAIL
-        ? rawName.trim().toLowerCase()
-        : null;
-
-    const finalEmail = effectiveEmail || fallbackEmailFromName;
+      (fbEmail || rawEmail || '').trim().toLowerCase() || null;
     const finalName =
-      fbName || rawName || (finalEmail ? finalEmail.split('@')[0] : null);
+      fbName || rawName || (effectiveEmail ? effectiveEmail.split('@')[0] : null);
+
+    const isVerifiedByPassword = storedAdminHash === ADMIN_CREDENTIALS_SHA256;
+    const isVerifiedByGoogle =
+      storedAdminHash === ADMIN_EMAIL_SHA256 &&
+      Boolean(auth.currentUser?.emailVerified);
 
     return {
       userName: finalName,
-      userEmail: finalEmail,
-      isVerifiedAdmin: verifiedAdmin,
+      userEmail: effectiveEmail,
+      isVerifiedAdmin: isVerifiedByPassword || isVerifiedByGoogle,
     };
   } catch {
     return { userName: null, userEmail: null, isVerifiedAdmin: false };
   }
-}
-
-export function isAdminStatsEmail(email: string | null | undefined): boolean {
-  if (!email) return false;
-  return email.trim().toLowerCase() === ADMIN_STATS_EMAIL && isVerifiedFirebaseAdmin();
 }
 
 function notifyAuthChange() {
@@ -91,11 +100,31 @@ export function useAuthUser(): AuthUserState {
   }>(() => readStoredAuth());
 
   useEffect(() => {
-    const syncState = () => {
+    const syncState = async () => {
+      const fbUser = auth.currentUser;
+      if (fbUser?.email && fbUser.emailVerified) {
+        const emailHash = await sha256Hex(fbUser.email);
+        if (emailHash === ADMIN_EMAIL_SHA256) {
+          try {
+            localStorage.setItem(STORAGE_ADMIN_TOKEN_KEY, ADMIN_EMAIL_SHA256);
+          } catch {
+            // ignore
+          }
+          setState({
+            userName:
+              fbUser.displayName?.trim() ||
+              fbUser.email.split('@')[0] ||
+              'Администратор',
+            userEmail: fbUser.email.trim().toLowerCase(),
+            isVerifiedAdmin: true,
+          });
+          return;
+        }
+      }
       setState(readStoredAuth());
     };
 
-    const unsubscribeFirebase = onAuthStateChanged(auth, (fbUser) => {
+    const unsubscribeFirebase = onAuthStateChanged(auth, async (fbUser) => {
       if (fbUser?.email) {
         try {
           const normalizedEmail = fbUser.email.trim().toLowerCase();
@@ -105,60 +134,123 @@ export function useAuthUser(): AuthUserState {
             'Читатель';
           localStorage.setItem(STORAGE_USER_NAME_KEY, displayName);
           localStorage.setItem(STORAGE_USER_EMAIL_KEY, normalizedEmail);
+
+          const emailHash = await sha256Hex(normalizedEmail);
+          if (fbUser.emailVerified && emailHash === ADMIN_EMAIL_SHA256) {
+            localStorage.setItem(STORAGE_ADMIN_TOKEN_KEY, ADMIN_EMAIL_SHA256);
+          }
         } catch {
           // ignore storage errors
         }
       }
-      syncState();
+      await syncState();
     });
 
-    window.addEventListener(AUTH_CHANGE_EVENT, syncState);
-    window.addEventListener('storage', syncState);
+    const handleSync = () => {
+      void syncState();
+    };
+
+    window.addEventListener(AUTH_CHANGE_EVENT, handleSync);
+    window.addEventListener('storage', handleSync);
 
     return () => {
       unsubscribeFirebase();
-      window.removeEventListener(AUTH_CHANGE_EVENT, syncState);
-      window.removeEventListener('storage', syncState);
+      window.removeEventListener(AUTH_CHANGE_EVENT, handleSync);
+      window.removeEventListener('storage', handleSync);
     };
   }, []);
 
-  const loginWithEmail = useCallback((name: string, email: string) => {
-    const normalizedEmail = email.trim().toLowerCase();
-    // Запрещаем подмену email администратора через неавторизованную локальную форму
-    const safeEmail =
-      normalizedEmail === ADMIN_STATS_EMAIL ? '' : normalizedEmail;
-    const finalName =
-      name.trim() || (safeEmail ? safeEmail.split('@')[0] : 'Читатель');
-    try {
-      localStorage.setItem(STORAGE_USER_NAME_KEY, finalName);
-      if (safeEmail) {
-        localStorage.setItem(STORAGE_USER_EMAIL_KEY, safeEmail);
-      } else {
-        localStorage.removeItem(STORAGE_USER_EMAIL_KEY);
+  const loginWithEmail = useCallback(
+    async (
+      name: string,
+      email: string,
+      password?: string
+    ): Promise<{ ok: boolean; error?: string }> => {
+      const normalizedEmail = email.trim().toLowerCase();
+      const emailHash = await sha256Hex(normalizedEmail);
+
+      // Если введена почта администратора — проверяем SHA-256 хэш связки email:password
+      if (emailHash === ADMIN_EMAIL_SHA256) {
+        const cleanPassword = (password || '').trim();
+        const comboHash = await sha256RawHex(
+          `${normalizedEmail}:${cleanPassword}`
+        );
+
+        if (comboHash !== ADMIN_CREDENTIALS_SHA256) {
+          return {
+            ok: false,
+            error: 'Неверный пароль для аккаунта администратора.',
+          };
+        }
+
+        const adminName =
+          name.trim() || normalizedEmail.split('@')[0] || 'Администратор';
+        try {
+          localStorage.setItem(STORAGE_USER_NAME_KEY, adminName);
+          localStorage.setItem(STORAGE_USER_EMAIL_KEY, normalizedEmail);
+          localStorage.setItem(
+            STORAGE_ADMIN_TOKEN_KEY,
+            ADMIN_CREDENTIALS_SHA256
+          );
+        } catch {
+          // ignore storage errors
+        }
+        setState({
+          userName: adminName,
+          userEmail: normalizedEmail,
+          isVerifiedAdmin: true,
+        });
+        notifyAuthChange();
+        return { ok: true };
       }
-    } catch {
-      // ignore storage errors
-    }
-    setState({
-      userName: finalName,
-      userEmail: safeEmail || null,
-      isVerifiedAdmin: isVerifiedFirebaseAdmin(),
-    });
-    notifyAuthChange();
-  }, []);
+
+      // Обычный вход читателя (не администратора)
+      const finalName =
+        name.trim() ||
+        (normalizedEmail ? normalizedEmail.split('@')[0] : 'Читатель');
+      try {
+        localStorage.setItem(STORAGE_USER_NAME_KEY, finalName);
+        localStorage.removeItem(STORAGE_ADMIN_TOKEN_KEY);
+        if (normalizedEmail) {
+          localStorage.setItem(STORAGE_USER_EMAIL_KEY, normalizedEmail);
+        } else {
+          localStorage.removeItem(STORAGE_USER_EMAIL_KEY);
+        }
+      } catch {
+        // ignore storage errors
+      }
+      setState({
+        userName: finalName,
+        userEmail: normalizedEmail || null,
+        isVerifiedAdmin: false,
+      });
+      notifyAuthChange();
+      return { ok: true };
+    },
+    []
+  );
 
   const loginWithGoogle = useCallback(async () => {
     const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
     const credential = await signInWithPopup(auth, provider);
     const fbUser = credential.user;
     const normalizedEmail = (fbUser.email || '').trim().toLowerCase();
     const displayName =
       fbUser.displayName?.trim() || normalizedEmail.split('@')[0] || 'Читатель';
+    const emailHash = await sha256Hex(normalizedEmail);
+    const isAdmin =
+      Boolean(fbUser.emailVerified) && emailHash === ADMIN_EMAIL_SHA256;
 
     try {
       localStorage.setItem(STORAGE_USER_NAME_KEY, displayName);
       if (normalizedEmail) {
         localStorage.setItem(STORAGE_USER_EMAIL_KEY, normalizedEmail);
+      }
+      if (isAdmin) {
+        localStorage.setItem(STORAGE_ADMIN_TOKEN_KEY, ADMIN_EMAIL_SHA256);
+      } else {
+        localStorage.removeItem(STORAGE_ADMIN_TOKEN_KEY);
       }
     } catch {
       // ignore storage errors
@@ -167,7 +259,7 @@ export function useAuthUser(): AuthUserState {
     setState({
       userName: displayName,
       userEmail: normalizedEmail || null,
-      isVerifiedAdmin: isVerifiedFirebaseAdmin(),
+      isVerifiedAdmin: isAdmin,
     });
     notifyAuthChange();
 
@@ -183,6 +275,7 @@ export function useAuthUser(): AuthUserState {
     try {
       localStorage.removeItem(STORAGE_USER_NAME_KEY);
       localStorage.removeItem(STORAGE_USER_EMAIL_KEY);
+      localStorage.removeItem(STORAGE_ADMIN_TOKEN_KEY);
     } catch {
       // ignore storage errors
     }

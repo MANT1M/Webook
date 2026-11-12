@@ -35,13 +35,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
     const normalizedEmail = email.trim().toLowerCase();
     const finalName = name.trim() || normalizedEmail.split('@')[0] || 'Читатель';
 
-    loginWithEmail(finalName, normalizedEmail);
+    const res = await loginWithEmail(finalName, normalizedEmail, password);
+    if (!res.ok) {
+      setErrorMsg(
+        res.error || 'Не удалось выполнить вход с указанными данными.'
+      );
+      return;
+    }
+
     if (onLogin) {
       onLogin(finalName, normalizedEmail);
     }
@@ -67,11 +74,25 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         onClose();
       }, 700);
     } catch (err) {
-      setErrorMsg(
-        err instanceof Error && err.message.includes('popup-closed-by-user')
-          ? 'Окно входа через Google было закрыто.'
-          : 'Не удалось войти через Google. Вы также можете войти по электронной почте ниже.'
-      );
+      const rawMessage = err instanceof Error ? err.message : String(err);
+      const currentHost =
+        typeof window !== 'undefined' ? window.location.hostname : '';
+
+      if (rawMessage.includes('popup-closed-by-user')) {
+        setErrorMsg('Окно входа через Google было закрыто.');
+      } else if (rawMessage.includes('unauthorized-domain')) {
+        setErrorMsg(
+          `Домен «${currentHost}» ещё не добавлен в список разрешённых доменов Firebase Auth (Firebase Console → Authentication → Settings → Authorized domains).`
+        );
+      } else if (rawMessage.includes('popup-blocked')) {
+        setErrorMsg(
+          'Браузер заблокировал всплывающее окно входа Google. Разрешите всплывающие окна для этого сайта.'
+        );
+      } else {
+        setErrorMsg(
+          `Не удалось войти через Google (${rawMessage}).`
+        );
+      }
     } finally {
       setGoogleLoading(false);
     }
